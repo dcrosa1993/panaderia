@@ -3,6 +3,7 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import {
   BootstrapAdminInput,
   createBootstrapAdmin,
+  validateBootstrapInput,
 } from './bootstrap-admin.service.js';
 
 describe('createBootstrapAdmin', () => {
@@ -30,8 +31,9 @@ describe('createBootstrapAdmin', () => {
 
     const createData = userCreate.mock.calls[0][0].data;
     expect(createData.passwordHash).not.toBe(input.password);
-    await expect(argon2.verify(createData.passwordHash, input.password)).resolves
-      .toBe(true);
+    await expect(
+      argon2.verify(createData.passwordHash, input.password),
+    ).resolves.toBe(true);
     expect(membershipCreate).toHaveBeenCalledWith({
       data: { userId: 'user-id', bakeryId: 'bakery-id', role: 'ADMIN' },
     });
@@ -77,6 +79,62 @@ describe('createBootstrapAdmin', () => {
     expect(bakeryCreate).not.toHaveBeenCalled();
     expect(membershipCreate).not.toHaveBeenCalled();
   });
+
+  it('propagates bootstrap database failures so the caller can diagnose them', async () => {
+    const databaseError = Object.assign(new Error('database unavailable'), {
+      code: 'P1001',
+    });
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue(databaseError),
+    } as unknown as PrismaClient;
+
+    await expect(createBootstrapAdmin(prisma, input)).rejects.toBe(
+      databaseError,
+    );
+  });
+
+  it('accepts the minimum password length of 12 UTF-8 bytes', () => {
+    expect(() =>
+      validateBootstrapInput({ ...input, password: '🥐🥐🥐' }),
+    ).not.toThrow();
+  });
+
+  it('reports the password field when it is shorter than 12 UTF-8 bytes', () => {
+    expect(() =>
+      validateBootstrapInput({ ...input, password: '🥐🥐' }),
+    ).toThrow('BOOTSTRAP_ADMIN_PASSWORD must be at least 12 UTF-8 bytes.');
+  });
+
+  it('reports every field that exceeds its schema character limit', () => {
+    const invalidInput = {
+      email: `${'a'.repeat(321)}@example.test`,
+      password: input.password,
+      displayName: 'D'.repeat(161),
+      bakeryName: 'B'.repeat(181),
+    };
+
+    expect(() => validateBootstrapInput(invalidInput)).toThrow(
+      'BOOTSTRAP_ADMIN_EMAIL must be at most 320 characters. BOOTSTRAP_ADMIN_NAME must be at most 160 characters. BOOTSTRAP_BAKERY_NAME must be at most 180 characters.',
+    );
+  });
+
+  it('accepts display and bakery names at their schema limits by Unicode character count', () => {
+    expect(() =>
+      validateBootstrapInput({
+        ...input,
+        displayName: '🥐'.repeat(160),
+        bakeryName: '🍞'.repeat(180),
+      }),
+    ).not.toThrow();
+  });
+
+  it('accepts the email schema length limit before validating email syntax', () => {
+    const emailAtLimit = `${'a'.repeat(320)}`;
+
+    expect(() =>
+      validateBootstrapInput({ ...input, email: emailAtLimit }),
+    ).toThrow('Bootstrap email must be a valid email address.');
+  });
 });
 
 function createFakePrisma({
@@ -84,7 +142,10 @@ function createFakePrisma({
   bakeryCount,
   ...transaction
 }: {
-  user: { findUnique: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  user: {
+    findUnique: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+  };
   bakery: { create: ReturnType<typeof vi.fn> };
   membership: { create: ReturnType<typeof vi.fn> };
   userCount: number;

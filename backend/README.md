@@ -131,9 +131,11 @@ prices are informational and are not required to save or publish a recipe.
 No public signup is provided. To create the initial bakery administrator,
 configure `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (at least 12
 UTF-8 bytes), `BOOTSTRAP_ADMIN_NAME` and `BOOTSTRAP_BAKERY_NAME` in the ignored
-`.env`, then explicitly run `npm run bootstrap:admin`. The command refuses an
-existing normalized email or any existing account/bakery and does not run as
-part of application startup.
+`.env`, then run `npm run bootstrap:admin` from the `backend` directory. The
+script loads that directory's `.env` explicitly, reports missing variable
+names without values, and prints a redacted error type, message, and Prisma
+code when it fails. It refuses an existing normalized email or any existing
+account/bakery and does not run as part of application startup.
 
 ## Deployment
 
