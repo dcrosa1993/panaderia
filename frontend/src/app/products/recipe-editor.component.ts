@@ -8,6 +8,12 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { forkJoin } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { ApiService } from '../core/api.service';
@@ -18,6 +24,7 @@ import {
   RecipeVersionDetail,
 } from '../core/api.models';
 import { SessionStore } from '../core/session-store.service';
+import { apiErrorMessage } from '../core/api-error-message';
 
 type RecipeLineControls = {
   materialId: FormControl<string>;
@@ -28,13 +35,13 @@ type RecipeLineControls = {
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [NzAlertModule, NzButtonModule, NzInputModule, NzPopconfirmModule, NzSelectModule, NzTableModule, ReactiveFormsModule, RouterLink],
   selector: 'app-recipe-editor',
   template: `
-    <main class="page">
-      <a class="back" [routerLink]="['/products', productId]">← Volver al producto</a>
-      @if (loading()) { <p class="state">Cargando receta…</p> }
-      @else if (error() && !version()) { <p class="state error" role="alert">{{ error() }}</p> }
+    <main class="page mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <a class="back font-semibold text-emerald-800 no-underline" [routerLink]="['/products', productId]">← Volver al producto</a>
+      @if (loading()) { <p class="state rounded-xl bg-white p-8 text-center text-stone-600">Cargando receta…</p> }
+      @else if (error() && !version()) { <nz-alert class="my-4 block" nzType="error" [nzMessage]="error()" nzShowIcon /> }
       @else if (version(); as data) {
         <header class="heading">
           <div><p class="eyebrow">RECETA · {{ statusLabel(data.status) }} · VERSIÓN {{ data.versionNumber }}</p>
@@ -48,81 +55,79 @@ type RecipeLineControls = {
           <p class="notice">Tu rol permite consultar esta receta, pero no modificarla.</p>
         }
         <form [formGroup]="form" (ngSubmit)="saveDraft()">
-          <section class="panel">
+          <section class="panel rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
             <h2>Rendimiento del lote</h2>
             <div class="grid">
               <label>Rendimiento
-                <input inputmode="decimal" formControlName="outputQuantity">
+                <input nz-input inputmode="decimal" formControlName="outputQuantity">
               </label>
               <label>Unidad de salida
-                <select formControlName="outputUnitId">
+                <nz-select formControlName="outputUnitId">
                   @for (unit of outputUnits(); track unit.id) {
-                    <option [value]="unit.id">{{ unit.name }} ({{ unit.code }})</option>
+                    <nz-option [nzValue]="unit.id" [nzLabel]="unit.name + ' (' + unit.code + ')'"></nz-option>
                   }
-                </select>
+                </nz-select>
               </label>
             </div>
             <label class="notes">Notas de preparación
-              <textarea rows="3" formControlName="preparationNotes" maxlength="4000"></textarea>
+              <textarea nz-input rows="3" formControlName="preparationNotes" maxlength="4000"></textarea>
             </label>
           </section>
-          <section class="panel">
+          <section class="panel rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
             <div class="section-heading"><h2>Ingredientes</h2>
-              @if (editable()) { <button class="secondary" type="button" (click)="addLine()">＋ Añadir ingrediente</button> }
+              @if (editable()) { <button nz-button nzType="default" type="button" (click)="addLine()">＋ Añadir ingrediente</button> }
             </div>
             @if (lines.length === 0) {
               <p class="muted">Este borrador no tiene ingredientes. Añade al menos uno antes de publicarlo.</p>
             } @else {
-              <div class="table-wrap"><table><thead><tr><th>Materia prima</th><th>Cantidad</th><th>Unidad</th><th>Nota</th><th></th></tr></thead>
+              <div class="table-wrap overflow-x-auto"><nz-table [nzData]="lines.controls" [nzFrontPagination]="false" [nzShowPagination]="false"><thead><tr><th>Materia prima</th><th>Cantidad</th><th>Unidad</th><th>Nota</th><th></th></tr></thead>
                 <tbody formArrayName="materials">
                   @for (line of lines.controls; track $index; let i = $index) {
                     <tr [formGroupName]="i">
                       <td>
-                        <select formControlName="materialId" (change)="onMaterialChange(i)" [disabled]="!editable()">
-                          <option value="">Selecciona una materia prima</option>
+                        <nz-select formControlName="materialId" (ngModelChange)="onMaterialChange(i)" [nzDisabled]="!editable()" nzPlaceHolder="Selecciona una materia prima">
                           @for (material of materialsFor(line.controls.materialId.value); track material.id) {
-                            <option [value]="material.id">{{ material.name }}{{ material.isActive ? '' : ' · Inactiva' }}</option>
+                            <nz-option [nzValue]="material.id" [nzLabel]="material.name + (material.isActive ? '' : ' · Inactiva')"></nz-option>
                           }
-                        </select>
+                        </nz-select>
                         @if (selectedMaterial(line.controls.materialId.value); as selected) {
                           @if (!selected.isActive) { <small class="error">Esta materia prima está inactiva; sustitúyela antes de guardar.</small> }
                           @else if (!selected.currentPrice) { <small class="warning">Sin precio vigente; esto no impide editar la receta.</small> }
                           @else { <small class="muted">Precio orientativo: {{ selected.currentPrice.pricePerBaseUnitCUP }} CUP / {{ selected.baseUnit.code }}</small> }
                         }
                       </td>
-                      <td><input inputmode="decimal" formControlName="quantity" [readonly]="!editable()" placeholder="0.000000"></td>
+                      <td><input nz-input inputmode="decimal" formControlName="quantity" [readonly]="!editable()" placeholder="0.000000"></td>
                       <td>
-                        <select formControlName="unitId" [disabled]="!editable()">
-                          <option value="">Unidad</option>
+                        <nz-select formControlName="unitId" [nzDisabled]="!editable()" nzPlaceHolder="Unidad">
                           @for (unit of unitsFor(line.controls.materialId.value); track unit.id) {
-                            <option [value]="unit.id">{{ unit.name }} ({{ unit.code }})</option>
+                            <nz-option [nzValue]="unit.id" [nzLabel]="unit.name + ' (' + unit.code + ')'"></nz-option>
                           }
-                        </select>
+                        </nz-select>
                       </td>
-                      <td><input formControlName="notes" maxlength="500" [readonly]="!editable()"></td>
-                      <td>@if (editable()) { <button class="remove" type="button" (click)="removeLine(i)" aria-label="Quitar ingrediente">Quitar</button> }</td>
+                      <td><input nz-input formControlName="notes" maxlength="500" [readonly]="!editable()"></td>
+                      <td>@if (editable()) { <button nz-button nzType="text" nzDanger type="button" (click)="removeLine(i)" aria-label="Quitar ingrediente">Quitar</button> }</td>
                     </tr>
                   }
                 </tbody>
-              </table></div>
+              </nz-table></div>
             }
           </section>
-          @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-          @if (saved()) { <p class="success" role="status">El borrador quedó guardado.</p> }
+          @if (error()) { <nz-alert nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          @if (saved()) { <nz-alert nzType="success" nzMessage="El borrador quedó guardado." nzShowIcon /> }
           @if (editable()) {
             <div class="actions">
-              <button class="primary" type="submit" [disabled]="saving() || form.invalid">{{ saving() ? 'Guardando…' : 'Guardar borrador' }}</button>
+              <button nz-button nzType="primary" type="submit" [disabled]="saving() || form.invalid">{{ saving() ? 'Guardando…' : 'Guardar borrador' }}</button>
             </div>
           }
         </form>
         @if (editable()) {
-          <section class="panel publish">
+          <section class="panel publish rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
             <h2>Publicar versión</h2>
             <p>Al publicarla, quedará de solo lectura. Los cambios posteriores se hacen creando otra versión.</p>
             <label>Fecha de vigencia
-              <input type="date" [value]="effectiveFrom()" (input)="setEffectiveFrom($event)">
+              <input nz-input type="date" [value]="effectiveFrom()" (input)="setEffectiveFrom($event)">
             </label>
-            <button class="primary" type="button" [disabled]="saving() || !effectiveFrom()" (click)="publish()">
+            <button nz-button nzType="primary" type="button" nz-popconfirm nzPopconfirmTitle="Al publicar, esta versión quedará de solo lectura. ¿Deseas continuar?" (nzOnConfirm)="publish()" [disabled]="saving() || !effectiveFrom()">
               {{ saving() ? 'Publicando…' : 'Publicar versión' }}
             </button>
           </section>
@@ -141,7 +146,6 @@ type RecipeLineControls = {
     .panel { margin: 1rem 0; padding: clamp(1rem, 3vw, 1.5rem); background: white; border: 1px solid #e4e6df; border-radius: .8rem; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; max-width: 42rem; }
     label { display: grid; gap: .35rem; color: #4c5b50; font-size: .85rem; font-weight: 650; }
-    input, select, textarea { width: 100%; min-width: 8rem; padding: .65rem .7rem; border: 1px solid #d4ddd3; border-radius: .5rem; background: white; color: #26352a; font: inherit; }
     .notes { margin-top: .9rem; max-width: 55rem; }
     .section-heading { display: flex; justify-content: space-between; align-items: center; gap: .8rem; }
     .table-wrap { overflow-x: auto; }
@@ -154,11 +158,6 @@ type RecipeLineControls = {
     .error { color: #a33127; }
     .success { color: #25613a; }
     .notice { padding: .8rem 1rem; border-radius: .55rem; color: #285638; background: #eef6ec; }
-    .button, button { display: inline-flex; justify-content: center; padding: .65rem .85rem; border: 1px solid transparent; border-radius: .5rem; font: inherit; font-weight: 700; cursor: pointer; }
-    .primary { color: white; background: #28643a; }
-    .secondary { color: #315b3a; background: white; border-color: #d4ddd3; }
-    .remove { color: #9b3428; background: transparent; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
     .actions { display: flex; justify-content: end; }
     .publish { display: grid; justify-items: start; gap: .8rem; }
     .publish p { margin: 0; color: #69746b; }
@@ -289,8 +288,11 @@ export class RecipeEditorComponent implements OnInit {
         this.saved.set(true);
         this.saving.set(false);
       },
-      error: () => {
-        this.error.set('No se pudo guardar la receta. Revisa cantidades, unidades y materias primas activas.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo guardar la receta. Revisa cantidades, unidades y materias primas activas.',
+        ));
         this.saving.set(false);
       },
     });
@@ -298,9 +300,6 @@ export class RecipeEditorComponent implements OnInit {
 
   publish(): void {
     if (!this.editable() || !this.effectiveFrom() || this.saving()) return;
-    if (!window.confirm('Al publicar, esta versión quedará de solo lectura. ¿Deseas continuar?')) {
-      return;
-    }
     this.saving.set(true);
     this.error.set('');
     this.api.updateRecipeVersion(this.productId, this.versionId, {
@@ -333,8 +332,11 @@ export class RecipeEditorComponent implements OnInit {
         this.version.set(version);
         this.saving.set(false);
       },
-      error: () => {
-        this.error.set('No se pudo publicar. Comprueba que haya ingredientes válidos y que la fecha no sea retroactiva ni se solape.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo publicar. Comprueba que haya ingredientes válidos y que la fecha no sea retroactiva ni se solape.',
+        ));
         this.saving.set(false);
       },
     });
@@ -402,14 +404,20 @@ export class RecipeEditorComponent implements OnInit {
             if (!this.editable()) this.form.disable({ emitEvent: false });
             this.loading.set(false);
           },
-          error: () => {
-            this.error.set('No se pudieron cargar todas las materias primas.');
+          error: (error: unknown) => {
+            this.error.set(apiErrorMessage(
+              error,
+              'No se pudieron cargar todas las materias primas.',
+            ));
             this.loading.set(false);
           },
         });
       },
-      error: () => {
-        this.error.set('No se pudo cargar el producto o la versión de receta.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo cargar el producto o la versión de receta.',
+        ));
         this.loading.set(false);
       },
     });

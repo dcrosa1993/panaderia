@@ -1,8 +1,15 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzPaginationModule } from 'ng-zorro-antd/pagination';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { ApiService } from '../core/api.service';
 import { Material, MaterialKind } from '../core/api.models';
+import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
 
 const materialKindOptions: { value: MaterialKind; label: string }[] = [
@@ -15,36 +22,47 @@ const materialKindOptions: { value: MaterialKind; label: string }[] = [
 
 @Component({
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzInputModule,
+    NzPaginationModule,
+    NzSelectModule,
+    NzTableModule,
+    RouterLink,
+  ],
   selector: 'app-material-list',
   template: `
-    <main class="page">
-      <div class="heading">
+    <main class="page mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div class="heading flex flex-wrap items-end gap-4">
         <div><p class="eyebrow">CATÁLOGO</p><h1>Materias primas</h1><p class="muted">Controla tus insumos y consulta su historial de precios.</p></div>
-        @if (canEdit()) { <a class="button primary" routerLink="/materials/new">＋ Nueva materia prima</a> }
+        @if (canEdit()) { <a nz-button nzType="primary" routerLink="/materials/new">＋ Nueva materia prima</a> }
       </div>
-      <section class="filters" aria-label="Filtros del catálogo">
-        <label>Buscar <input [(ngModel)]="search" (keyup.enter)="applyFilters()" placeholder="Nombre de materia prima"></label>
+      <section class="filters flex flex-wrap items-end gap-4" aria-label="Filtros del catálogo">
+        <label>Buscar <input nz-input [(ngModel)]="search" (keyup.enter)="applyFilters()" placeholder="Nombre de materia prima"></label>
         <label>Tipo
-          <select [(ngModel)]="kind" (change)="applyFilters()">
-            <option value="">Todos</option>
-            @for (option of kinds; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
-          </select>
+          <nz-select class="min-w-40" [(ngModel)]="kind" (ngModelChange)="applyFilters()">
+            <nz-option nzValue="" nzLabel="Todos"></nz-option>
+            @for (option of kinds; track option.value) { <nz-option [nzValue]="option.value" [nzLabel]="option.label"></nz-option> }
+          </nz-select>
         </label>
         <label>Estado
-          <select [(ngModel)]="activeFilter" (change)="applyFilters()">
-            <option value="">Todos</option><option value="true">Activas</option><option value="false">Inactivas</option>
-          </select>
+          <nz-select class="min-w-40" [(ngModel)]="activeFilter" (ngModelChange)="applyFilters()">
+            <nz-option nzValue="" nzLabel="Todos"></nz-option>
+            <nz-option nzValue="true" nzLabel="Activas"></nz-option>
+            <nz-option nzValue="false" nzLabel="Inactivas"></nz-option>
+          </nz-select>
         </label>
-        <button class="button secondary" type="button" (click)="applyFilters()">Buscar</button>
+        <button nz-button nzType="default" type="button" (click)="applyFilters()">Buscar</button>
       </section>
       @if (loading()) { <p class="state">Cargando materias primas…</p> }
-      @else if (error()) { <p class="state error" role="alert">{{ error() }}</p> }
+      @else if (error()) { <nz-alert class="mb-4 block" nzType="error" [nzMessage]="error()" nzShowIcon /> }
       @else if (items().length === 0) {
         <section class="empty"><h2>No hay materias primas</h2><p>Prueba con otros filtros o crea la primera materia prima.</p></section>
       } @else {
         <section class="table-wrap">
-          <table>
+          <nz-table [nzData]="items()" [nzFrontPagination]="false" [nzShowPagination]="false">
             <thead><tr><th>Nombre</th><th>Tipo</th><th>Unidad base</th><th>Precio vigente</th><th>Estado</th><th><span class="visually-hidden">Acciones</span></th></tr></thead>
             <tbody>
               @for (item of items(); track item.id) {
@@ -57,11 +75,11 @@ const materialKindOptions: { value: MaterialKind; label: string }[] = [
                 </tr>
               }
             </tbody>
-          </table>
+          </nz-table>
         </section>
-        <div class="pagination">
+        <div class="pagination flex flex-wrap items-center justify-between gap-4">
           <span>{{ result()?.total }} registros · Página {{ result()?.page }} de {{ result()?.totalPages || 1 }}</span>
-          <div><button class="button secondary" type="button" [disabled]="page <= 1" (click)="changePage(-1)">Anterior</button><button class="button secondary" type="button" [disabled]="page >= (result()?.totalPages ?? 1)" (click)="changePage(1)">Siguiente</button></div>
+          <nz-pagination [nzPageIndex]="page" [nzTotal]="result()?.total ?? 0" [nzPageSize]="20" (nzPageIndexChange)="goToPage($event)"></nz-pagination>
         </div>
       }
     </main>
@@ -126,8 +144,8 @@ export class MaterialListComponent implements OnInit {
     this.load();
   }
 
-  changePage(delta: number): void {
-    this.page += delta;
+  goToPage(page: number): void {
+    this.page = page;
     this.load();
   }
 
@@ -151,8 +169,11 @@ export class MaterialListComponent implements OnInit {
         this.page = result.page;
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('No se pudo cargar el catálogo. Inténtalo de nuevo.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo cargar el catálogo. Inténtalo de nuevo.',
+        ));
         this.loading.set(false);
       },
     });

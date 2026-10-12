@@ -1,8 +1,13 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { ApiService } from '../core/api.service';
 import { MaterialKind, MeasurementUnit } from '../core/api.models';
+import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
 
 const MATERIAL_KINDS: { value: MaterialKind; label: string }[] = [
@@ -15,50 +20,33 @@ const MATERIAL_KINDS: { value: MaterialKind; label: string }[] = [
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [NzAlertModule, NzButtonModule, NzInputModule, NzSelectModule, ReactiveFormsModule, RouterLink],
   selector: 'app-material-form',
   template: `
-    <main class="page">
-      <a class="back" routerLink="/materials">← Volver al catálogo</a>
-      <section class="panel">
-        <p class="eyebrow">CATÁLOGO</p><h1>{{ editing ? 'Editar materia prima' : 'Nueva materia prima' }}</h1>
-        @if (loading()) { <p>Cargando datos…</p> }
+    <main class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <a class="font-semibold text-emerald-800 no-underline" routerLink="/materials">← Volver al catálogo</a>
+      <section class="mt-4 rounded-xl border border-stone-200 bg-white p-5 sm:p-8">
+        <p class="text-xs font-extrabold tracking-[.14em] text-emerald-800">CATÁLOGO</p><h1 class="mb-6 font-serif text-3xl font-medium text-emerald-950">{{ editing ? 'Editar materia prima' : 'Nueva materia prima' }}</h1>
+        @if (loading()) { <p class="text-stone-600">Cargando datos…</p> }
         @else {
-          <form [formGroup]="form" (ngSubmit)="submit()">
-            <label for="name">Nombre<input id="name" formControlName="name" maxlength="180"></label>
-            @if (form.controls.name.touched && form.controls.name.invalid) { <small>El nombre es obligatorio (máximo 180 caracteres).</small> }
-            <label for="kind">Tipo
-              <select id="kind" formControlName="kind">@for (kind of kinds; track kind.value) { <option [value]="kind.value">{{ kind.label }}</option> }</select>
+          <form class="grid gap-4" [formGroup]="form" (ngSubmit)="submit()">
+            <label class="grid gap-2 text-sm font-medium text-stone-700" for="name">Nombre<input nz-input id="name" formControlName="name" maxlength="180"></label>
+            @if (form.controls.name.touched && form.controls.name.invalid) { <small class="-mt-3 text-sm text-red-700">El nombre es obligatorio (máximo 180 caracteres).</small> }
+            <label class="grid gap-2 text-sm font-medium text-stone-700" for="kind">Tipo
+              <nz-select id="kind" formControlName="kind">@for (kind of kinds; track kind.value) { <nz-option [nzValue]="kind.value" [nzLabel]="kind.label"></nz-option> }</nz-select>
             </label>
-            <label for="baseUnit">Unidad base
-              <select id="baseUnit" formControlName="baseUnitId"><option value="">Selecciona una unidad</option>@for (unit of units(); track unit.id) { <option [value]="unit.id">{{ unit.name }} ({{ unit.code }}) · {{ unit.dimension }}</option> }</select>
+            <label class="grid gap-2 text-sm font-medium text-stone-700" for="baseUnit">Unidad base
+              <nz-select id="baseUnit" formControlName="baseUnitId" nzPlaceHolder="Selecciona una unidad">@for (unit of units(); track unit.id) { <nz-option [nzValue]="unit.id" [nzLabel]="unit.name + ' (' + unit.code + ') · ' + unit.dimension"></nz-option> }</nz-select>
             </label>
-            <label for="density">Densidad (g/ml), opcional<input id="density" inputmode="decimal" formControlName="densityGramPerMl" placeholder="No se usa para conversiones en esta fase"></label>
-            @if (editing) { <label class="check"><input type="checkbox" formControlName="isActive"> Materia prima activa</label> }
-            @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-            <div class="actions"><button class="primary" type="submit" [disabled]="form.invalid || saving() || !canEdit">{{ saving() ? 'Guardando…' : 'Guardar' }}</button><a routerLink="/materials">Cancelar</a></div>
+            <label class="grid gap-2 text-sm font-medium text-stone-700" for="density">Densidad (g/ml), opcional<input nz-input id="density" inputmode="decimal" formControlName="densityGramPerMl" placeholder="No se usa para conversiones en esta fase"></label>
+            @if (editing) { <label class="flex items-center gap-2 text-sm text-stone-700"><input type="checkbox" formControlName="isActive"> Materia prima activa</label> }
+            @if (error()) { <nz-alert nzType="error" [nzMessage]="error()" nzShowIcon /> }
+            <div class="flex flex-wrap items-center gap-3 pt-2"><button nz-button nzType="primary" type="submit" [disabled]="form.invalid || saving() || !canEdit">{{ saving() ? 'Guardando…' : 'Guardar' }}</button><a class="font-semibold text-emerald-800 no-underline" routerLink="/materials">Cancelar</a></div>
           </form>
         }
       </section>
     </main>
   `,
-  styles: [`
-    .page { width: min(100% - 2rem, 52rem); margin: 2.5rem auto; }
-    .back { color: #28643a; font-weight: 700; text-decoration: none; }
-    .panel { margin-top: 1rem; padding: clamp(1.25rem, 4vw, 2rem); background: white; border: 1px solid #e4e6df; border-radius: .85rem; }
-    .eyebrow { color: #43814f; font-size: .72rem; font-weight: 800; letter-spacing: .14em; }
-    h1 { color: #263c2a; font: 500 2rem Georgia, serif; }
-    form { display: grid; gap: 1rem; }
-    label { display: grid; gap: .4rem; color: #4c5b50; font-weight: 650; }
-    input, select { width: 100%; padding: .7rem .75rem; border: 1px solid #d4ddd3; border-radius: .5rem; background: white; color: #26352a; font: inherit; }
-    .check { display: flex; align-items: center; gap: .6rem; }
-    .check input { width: auto; }
-    small, .error { color: #a33127; }
-    .actions { display: flex; align-items: center; gap: 1rem; margin-top: .5rem; }
-    .actions a { color: #28643a; font-weight: 700; text-decoration: none; }
-    button { padding: .75rem 1.1rem; border: 0; border-radius: .5rem; color: white; background: #28643a; font: inherit; font-weight: 700; cursor: pointer; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-  `],
 })
 export class MaterialFormComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
@@ -131,8 +119,11 @@ export class MaterialFormComponent implements OnInit {
         });
     request.subscribe({
       next: (material) => void this.router.navigate(['/materials', material.id, 'prices']),
-      error: () => {
-        this.error.set('No se pudo guardar. Revisa los datos e inténtalo de nuevo.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo guardar. Revisa los datos e inténtalo de nuevo.',
+        ));
         this.saving.set(false);
       },
     });
@@ -150,8 +141,11 @@ export class MaterialFormComponent implements OnInit {
         });
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('No se encontró la materia prima solicitada.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se encontró la materia prima solicitada.',
+        ));
         this.loading.set(false);
       },
     });

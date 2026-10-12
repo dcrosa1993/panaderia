@@ -1,89 +1,69 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { ApiService } from '../core/api.service';
 import { MaterialPriceHistory, MeasurementUnit, PricePreview } from '../core/api.models';
+import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [NzAlertModule, NzButtonModule, NzInputModule, NzSelectModule, NzTableModule, ReactiveFormsModule, RouterLink],
   selector: 'app-material-prices',
   template: `
-    <main class="page">
-      <a class="back" routerLink="/materials">← Volver al catálogo</a>
+    <main class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <a class="font-semibold text-emerald-800 no-underline" routerLink="/materials">← Volver al catálogo</a>
       @if (loading()) { <p class="state">Cargando historial de precios…</p> }
-      @else if (error() && !history()) { <p class="error" role="alert">{{ error() }}</p> }
+      @else if (error() && !history()) { <nz-alert class="my-4 block" nzType="error" [nzMessage]="error()" nzShowIcon /> }
       @else if (history(); as data) {
-        <div class="heading"><div><p class="eyebrow">HISTORIAL DE PRECIOS</p><h1>{{ data.material.name }}</h1><p class="muted">Unidad base: {{ data.material.baseUnit.name }} ({{ data.material.baseUnit.code }})</p></div>
-          @if (canEdit) { <a class="button primary" [routerLink]="['/materials', data.material.id, 'edit']">Editar materia prima</a> }
+        <div class="my-5 flex flex-wrap items-end justify-between gap-4"><div><p class="text-xs font-extrabold tracking-[.14em] text-emerald-800">HISTORIAL DE PRECIOS</p><h1 class="font-serif text-3xl text-emerald-950">{{ data.material.name }}</h1><p class="text-stone-600">Unidad base: {{ data.material.baseUnit.name }} ({{ data.material.baseUnit.code }})</p></div>
+          @if (canEdit) { <a nz-button nzType="default" [routerLink]="['/materials', data.material.id, 'edit']">Editar materia prima</a> }
         </div>
         @if (canEdit) {
-          <section class="panel">
-            <h2>Registrar nuevo precio</h2>
-            <form [formGroup]="form" (ngSubmit)="save()">
-              <label>Precio del paquete (CUP)<input inputmode="decimal" formControlName="packagePriceCUP" placeholder="0.00"></label>
-              <label>Cantidad del paquete<input inputmode="decimal" formControlName="packageQuantity" placeholder="1"></label>
-              <label>Unidad del paquete<select formControlName="packageUnitId"><option value="">Selecciona una unidad</option>@for (unit of compatibleUnits(); track unit.id) { <option [value]="unit.id">{{ unit.name }} ({{ unit.code }})</option> }</select></label>
-              <label>Vigente desde<input type="date" formControlName="effectiveFrom"></label>
-              <label>Vigente hasta (opcional)<input type="date" formControlName="effectiveTo"></label>
-              <label class="wide">Origen o nota (opcional)<input formControlName="sourceNote" maxlength="500"></label>
+          <section class="my-4 rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
+            <h2 class="font-serif text-xl text-emerald-950">Registrar nuevo precio</h2>
+            <form class="grid grid-cols-1 gap-4 md:grid-cols-2" [formGroup]="form" (ngSubmit)="save()">
+              <label class="grid gap-2 text-sm font-medium text-stone-700">Precio del paquete (CUP)<input nz-input inputmode="decimal" formControlName="packagePriceCUP" placeholder="0.00"></label>
+              <label class="grid gap-2 text-sm font-medium text-stone-700">Cantidad del paquete<input nz-input inputmode="decimal" formControlName="packageQuantity" placeholder="1"></label>
+              <label class="grid gap-2 text-sm font-medium text-stone-700">Unidad del paquete
+                <nz-select formControlName="packageUnitId" nzPlaceHolder="Selecciona una unidad">@for (unit of compatibleUnits(); track unit.id) { <nz-option [nzValue]="unit.id" [nzLabel]="unit.name + ' (' + unit.code + ')'"></nz-option> }</nz-select>
+              </label>
+              <label class="grid gap-2 text-sm font-medium text-stone-700">Vigente desde<input nz-input type="date" formControlName="effectiveFrom"></label>
+              <label class="grid gap-2 text-sm font-medium text-stone-700">Vigente hasta (opcional)<input nz-input type="date" formControlName="effectiveTo"></label>
+              <label class="grid gap-2 text-sm font-medium text-stone-700 md:col-span-2">Origen o nota (opcional)<input nz-input formControlName="sourceNote" maxlength="500"></label>
               @if (preview()) {
-                <div class="preview wide" aria-live="polite">
+                <div class="grid gap-1 rounded-lg bg-emerald-50 p-4 text-emerald-900 md:col-span-2" aria-live="polite">
                   <strong>Conversión calculada por el servidor</strong>
                   <span>{{ preview()?.normalizedQuantityInBaseUnit }} {{ data.material.baseUnit.code }} por paquete</span>
                   <span>{{ preview()?.pricePerBaseUnitCUP }} CUP / {{ data.material.baseUnit.code }}</span>
                 </div>
               }
-              @if (error()) { <p class="error wide" role="alert">{{ error() }}</p> }
-              @if (saved()) { <p class="success wide" role="status">El nuevo precio quedó registrado en el historial.</p> }
-              <div class="actions wide">
-                <button class="secondary" type="button" [disabled]="form.invalid || previewing()" (click)="calculate()">{{ previewing() ? 'Calculando…' : 'Calcular conversión' }}</button>
-                <button class="primary" type="submit" [disabled]="form.invalid || saving() || !preview()">{{ saving() ? 'Guardando…' : 'Guardar precio' }}</button>
+              @if (error()) { <nz-alert class="md:col-span-2" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+              @if (saved()) { <nz-alert class="md:col-span-2" nzType="success" nzMessage="El nuevo precio quedó registrado en el historial." nzShowIcon /> }
+              <div class="flex flex-wrap gap-3 md:col-span-2">
+                <button nz-button nzType="default" type="button" [disabled]="form.invalid || previewing()" (click)="calculate()">{{ previewing() ? 'Calculando…' : 'Calcular conversión' }}</button>
+                <button nz-button nzType="primary" type="submit" [disabled]="form.invalid || saving() || !preview()">{{ saving() ? 'Guardando…' : 'Guardar precio' }}</button>
               </div>
             </form>
           </section>
         }
-        <section class="panel">
-          <h2>Precios registrados</h2>
+        <section class="my-4 rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
+          <h2 class="mb-4 font-serif text-xl text-emerald-950">Precios registrados</h2>
           @if (data.items.length === 0) { <p class="muted">Todavía no hay precios registrados.</p> }
           @else {
-            <div class="table-wrap"><table><thead><tr><th>Vigencia</th><th>Precio del paquete</th><th>Cantidad</th><th>Precio por unidad base</th><th>Origen</th></tr></thead>
+            <div class="overflow-x-auto"><nz-table [nzData]="data.items" [nzFrontPagination]="false" [nzShowPagination]="false"><thead><tr><th>Vigencia</th><th>Precio del paquete</th><th>Cantidad</th><th>Precio por unidad base</th><th>Origen</th></tr></thead>
               <tbody>@for (price of data.items; track price.id) { <tr><td>{{ price.effectiveFrom }} – {{ price.effectiveTo ?? 'Sin fecha final' }}</td><td>{{ price.packagePriceCUP }} CUP</td><td>{{ price.packageQuantity }} {{ price.packageUnit.code }}</td><td>{{ price.pricePerBaseUnitCUP }} CUP / {{ data.material.baseUnit.code }}</td><td>{{ price.sourceNote || '—' }}</td></tr> }</tbody>
-            </table></div>
+            </nz-table></div>
           }
         </section>
       }
     </main>
   `,
-  styles: [`
-    .page { width: min(100% - 2rem, 80rem); margin: 2rem auto 3rem; }
-    .back { color: #28643a; font-weight: 700; text-decoration: none; }
-    .heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 1.3rem 0; }
-    .eyebrow { color: #43814f; font-size: .72rem; font-weight: 800; letter-spacing: .14em; }
-    h1 { margin: .35rem 0; color: #263c2a; font: 500 clamp(2rem, 5vw, 2.7rem)/1.1 Georgia, serif; }
-    h2 { color: #263c2a; font: 500 1.4rem Georgia, serif; }
-    .muted { color: #69746b; }
-    .panel { margin: 1rem 0; padding: clamp(1rem, 3vw, 1.5rem); background: white; border: 1px solid #e4e6df; border-radius: .8rem; }
-    form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
-    label { display: grid; gap: .35rem; color: #4c5b50; font-size: .85rem; font-weight: 650; }
-    input, select { width: 100%; padding: .68rem .72rem; border: 1px solid #d4ddd3; border-radius: .5rem; background: white; color: #26352a; font: inherit; }
-    .wide { grid-column: 1 / -1; }
-    .preview { display: grid; gap: .2rem; padding: .85rem; border-radius: .55rem; background: #eef6ec; color: #285638; }
-    .actions { display: flex; flex-wrap: wrap; gap: .65rem; }
-    .button, button { display: inline-flex; justify-content: center; padding: .7rem 1rem; border: 1px solid transparent; border-radius: .5rem; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
-    .primary { color: white; background: #28643a; }
-    .secondary { color: #315b3a; background: white; border-color: #d4ddd3; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; text-align: left; }
-    th, td { padding: .8rem .65rem; border-bottom: 1px solid #edf0eb; white-space: nowrap; }
-    th { color: #657067; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
-    .error { color: #a33127; }
-    .success { color: #25613a; }
-    .state { padding: 2rem; text-align: center; }
-    @media(max-width: 620px) { form { grid-template-columns: 1fr; } .heading { align-items: start; flex-direction: column; } .wide { grid-column: auto; } }
-  `],
 })
 export class MaterialPricesComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
@@ -127,14 +107,20 @@ export class MaterialPricesComponent implements OnInit {
             this.units.set(units);
             this.loading.set(false);
           },
-          error: () => {
-            this.error.set('No se pudieron cargar las unidades de medida.');
+          error: (error: unknown) => {
+            this.error.set(apiErrorMessage(
+              error,
+              'No se pudieron cargar las unidades de medida.',
+            ));
             this.loading.set(false);
           },
         });
       },
-      error: () => {
-        this.error.set('No se pudo cargar el historial de precios.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo cargar el historial de precios.',
+        ));
         this.loading.set(false);
       },
     });
@@ -153,9 +139,12 @@ export class MaterialPricesComponent implements OnInit {
         this.preview.set(preview);
         this.previewing.set(false);
       },
-      error: () => {
+      error: (error: unknown) => {
         this.preview.set(null);
-        this.error.set('No se pudo calcular la conversión. Revisa las unidades y fechas.');
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo calcular la conversión. Revisa las unidades y fechas.',
+        ));
         this.previewing.set(false);
       },
     });
@@ -183,8 +172,11 @@ export class MaterialPricesComponent implements OnInit {
         });
         this.loadHistory();
       },
-      error: () => {
-        this.error.set('No se pudo guardar el precio. Revisa su vigencia e inténtalo de nuevo.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo guardar el precio. Revisa su vigencia e inténtalo de nuevo.',
+        ));
         this.saving.set(false);
       },
     });
@@ -205,7 +197,10 @@ export class MaterialPricesComponent implements OnInit {
   private loadHistory(): void {
     this.api.priceHistory(this.materialId).subscribe({
       next: (history) => this.history.set(history),
-      error: () => this.error.set('El precio se guardó, pero no se pudo actualizar la lista.'),
+      error: (error: unknown) => this.error.set(apiErrorMessage(
+        error,
+        'El precio se guardó, pero no se pudo actualizar la lista.',
+      )),
     });
   }
 }

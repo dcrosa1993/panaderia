@@ -1,76 +1,65 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { ApiService } from '../core/api.service';
 import { MeasurementUnit, ProductStatus } from '../core/api.models';
+import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [NzAlertModule, NzButtonModule, NzInputModule, NzSelectModule, ReactiveFormsModule, RouterLink],
   selector: 'app-product-form',
   template: `
-    <main class="page">
-      <a class="back" routerLink="/products">← Volver a productos</a>
-      <section class="panel">
-        <p class="eyebrow">CATÁLOGO</p>
-        <h1>{{ editing ? 'Editar producto' : 'Nuevo producto' }}</h1>
-        @if (loading()) { <p>Cargando datos…</p> }
+    <main class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <a class="font-semibold text-emerald-800 no-underline" routerLink="/products">← Volver a productos</a>
+      <section class="mt-4 rounded-xl border border-stone-200 bg-white p-5 sm:p-8">
+        <p class="text-xs font-extrabold tracking-[.14em] text-emerald-800">CATÁLOGO</p>
+        <h1 class="mb-6 font-serif text-3xl font-medium text-emerald-950">{{ editing ? 'Editar producto' : 'Nuevo producto' }}</h1>
+        @if (loading()) { <p class="text-stone-600">Cargando datos…</p> }
         @else {
-          <form [formGroup]="form" (ngSubmit)="submit()">
-            <label for="name">Nombre
-              <input id="name" formControlName="name" maxlength="180">
+          <form class="grid gap-4" [formGroup]="form" (ngSubmit)="submit()">
+            <label class="grid gap-2 text-sm font-medium text-stone-700" for="name">Nombre
+              <input nz-input id="name" formControlName="name" maxlength="180">
             </label>
             @if (form.controls.name.touched && form.controls.name.invalid) {
-              <small>El nombre es obligatorio y admite hasta 180 caracteres.</small>
+              <small class="-mt-3 text-sm text-red-700">El nombre es obligatorio y admite hasta 180 caracteres.</small>
             }
-            <label for="description">Descripción (opcional)
-              <textarea id="description" rows="4" formControlName="description" maxlength="4000"></textarea>
+            <label class="grid gap-2 text-sm font-medium text-stone-700" for="description">Descripción (opcional)
+              <textarea nz-input id="description" rows="4" formControlName="description" maxlength="4000"></textarea>
             </label>
-            <label for="salesUnit">Unidad de venta
-              <select id="salesUnit" formControlName="salesUnitId">
-                <option value="">Selecciona una unidad activa</option>
+            <label class="grid gap-2 text-sm font-medium text-stone-700" for="salesUnit">Unidad de venta
+              <nz-select id="salesUnit" formControlName="salesUnitId" nzPlaceHolder="Selecciona una unidad activa">
                 @for (unit of units(); track unit.id) {
-                  <option [value]="unit.id">{{ unit.name }} ({{ unit.code }}) · {{ unit.dimension }}</option>
+                  <nz-option [nzValue]="unit.id" [nzLabel]="unit.name + ' (' + unit.code + ') · ' + unit.dimension"></nz-option>
                 }
-              </select>
+              </nz-select>
             </label>
             @if (editing) {
-              <label for="status">Estado
-                <select id="status" formControlName="status">
-                  <option value="ACTIVE">Activo</option>
-                  <option value="INACTIVE">Inactivo</option>
-                  <option value="ARCHIVED">Archivado</option>
-                </select>
+              <label class="grid gap-2 text-sm font-medium text-stone-700" for="status">Estado
+                <nz-select id="status" formControlName="status">
+                  <nz-option nzValue="ACTIVE" nzLabel="Activo"></nz-option>
+                  <nz-option nzValue="INACTIVE" nzLabel="Inactivo"></nz-option>
+                  <nz-option nzValue="ARCHIVED" nzLabel="Archivado"></nz-option>
+                </nz-select>
               </label>
             }
-            @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-            <div class="actions">
-              <button class="primary" type="submit" [disabled]="form.invalid || saving() || !canEdit">
+            @if (error()) { <nz-alert nzType="error" [nzMessage]="error()" nzShowIcon /> }
+            <div class="flex flex-wrap items-center gap-3 pt-2">
+              <button nz-button nzType="primary" type="submit" [disabled]="form.invalid || saving() || !canEdit">
                 {{ saving() ? 'Guardando…' : 'Guardar producto' }}
               </button>
-              <a routerLink="/products">Cancelar</a>
+              <a class="font-semibold text-emerald-800 no-underline" routerLink="/products">Cancelar</a>
             </div>
           </form>
         }
       </section>
     </main>
   `,
-  styles: [`
-    .page { width: min(100% - 2rem, 52rem); margin: 2.5rem auto; }
-    .back { color: #28643a; font-weight: 700; text-decoration: none; }
-    .panel { margin-top: 1rem; padding: clamp(1.25rem, 4vw, 2rem); background: white; border: 1px solid #e4e6df; border-radius: .85rem; }
-    .eyebrow { color: #43814f; font-size: .72rem; font-weight: 800; letter-spacing: .14em; }
-    h1 { color: #263c2a; font: 500 2rem Georgia, serif; }
-    form { display: grid; gap: 1rem; }
-    label { display: grid; gap: .4rem; color: #4c5b50; font-weight: 650; }
-    input, select, textarea { width: 100%; padding: .7rem .75rem; border: 1px solid #d4ddd3; border-radius: .5rem; background: white; color: #26352a; font: inherit; }
-    small, .error { color: #a33127; }
-    .actions { display: flex; align-items: center; gap: 1rem; margin-top: .5rem; }
-    .actions a { color: #28643a; font-weight: 700; text-decoration: none; }
-    button { padding: .75rem 1.1rem; border: 0; border-radius: .5rem; color: white; background: #28643a; font: inherit; font-weight: 700; cursor: pointer; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-  `],
 })
 export class ProductFormComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
@@ -137,8 +126,11 @@ export class ProductFormComponent implements OnInit {
       : this.api.createProduct(input);
     operation.subscribe({
       next: (product) => void this.router.navigate(['/products', product.id]),
-      error: () => {
-        this.error.set('No se pudo guardar el producto. Revisa los datos e inténtalo de nuevo.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudo guardar el producto. Revisa los datos e inténtalo de nuevo.',
+        ));
         this.saving.set(false);
       },
     });
@@ -155,8 +147,11 @@ export class ProductFormComponent implements OnInit {
         });
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('No se encontró el producto solicitado.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se encontró el producto solicitado.',
+        ));
         this.loading.set(false);
       },
     });

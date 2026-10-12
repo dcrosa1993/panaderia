@@ -1,42 +1,58 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzPaginationModule } from 'ng-zorro-antd/pagination';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { ApiService } from '../core/api.service';
 import {
   Product,
   ProductStatus,
 } from '../core/api.models';
+import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
 
 @Component({
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzInputModule,
+    NzPaginationModule,
+    NzSelectModule,
+    NzTableModule,
+    RouterLink,
+  ],
   selector: 'app-product-list',
   template: `
-    <main class="page">
-      <div class="heading">
+    <main class="page mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div class="heading flex flex-wrap items-end gap-4">
         <div><p class="eyebrow">PRODUCCIÓN</p><h1>Productos</h1><p class="muted">Organiza tus productos y sus recetas versionadas.</p></div>
-        @if (canEdit()) { <a class="button primary" routerLink="/products/new">＋ Nuevo producto</a> }
+        @if (canEdit()) { <a nz-button nzType="primary" routerLink="/products/new">＋ Nuevo producto</a> }
       </div>
-      <section class="filters" aria-label="Filtros de productos">
-        <label>Buscar <input [(ngModel)]="search" (keyup.enter)="applyFilters()" placeholder="Nombre del producto"></label>
+      <section class="filters flex flex-wrap items-end gap-4" aria-label="Filtros de productos">
+        <label>Buscar <input nz-input [(ngModel)]="search" (keyup.enter)="applyFilters()" placeholder="Nombre del producto"></label>
         <label>Estado
-          <select [(ngModel)]="status" (change)="applyFilters()">
-            <option value="">Todos</option>
-            <option value="ACTIVE">Activos</option>
-            <option value="INACTIVE">Inactivos</option>
-            <option value="ARCHIVED">Archivados</option>
-          </select>
+          <nz-select class="min-w-40" [(ngModel)]="status" (ngModelChange)="applyFilters()">
+            <nz-option nzValue="" nzLabel="Todos"></nz-option>
+            <nz-option nzValue="ACTIVE" nzLabel="Activos"></nz-option>
+            <nz-option nzValue="INACTIVE" nzLabel="Inactivos"></nz-option>
+            <nz-option nzValue="ARCHIVED" nzLabel="Archivados"></nz-option>
+          </nz-select>
         </label>
-        <button class="button secondary" type="button" (click)="applyFilters()">Buscar</button>
+        <button nz-button nzType="default" type="button" (click)="applyFilters()">Buscar</button>
       </section>
       @if (loading()) { <p class="state">Cargando productos…</p> }
-      @else if (error()) { <p class="state error" role="alert">{{ error() }}</p> }
+      @else if (error()) { <nz-alert class="mb-4 block" nzType="error" [nzMessage]="error()" nzShowIcon /> }
       @else if (items().length === 0) {
         <section class="empty"><h2>No hay productos</h2><p>Prueba con otros filtros o crea el primer producto.</p></section>
       } @else {
         <section class="table-wrap">
-          <table>
+          <nz-table [nzData]="items()" [nzFrontPagination]="false" [nzShowPagination]="false">
             <thead><tr><th>Producto</th><th>Unidad de venta</th><th>Estado</th><th>Receta</th><th>Vigencia</th><th></th></tr></thead>
             <tbody>
               @for (product of items(); track product.id) {
@@ -54,11 +70,11 @@ import { SessionStore } from '../core/session-store.service';
                 </tr>
               }
             </tbody>
-          </table>
+          </nz-table>
         </section>
-        <div class="pagination">
+        <div class="pagination flex flex-wrap items-center justify-between gap-4">
           <span>{{ total() }} productos · Página {{ page }} de {{ totalPages() || 1 }}</span>
-          <div><button class="button secondary" type="button" [disabled]="page <= 1" (click)="changePage(-1)">Anterior</button><button class="button secondary" type="button" [disabled]="page >= (totalPages() || 1)" (click)="changePage(1)">Siguiente</button></div>
+          <nz-pagination [nzPageIndex]="page" [nzTotal]="total()" [nzPageSize]="20" (nzPageIndexChange)="goToPage($event)"></nz-pagination>
         </div>
       }
     </main>
@@ -120,8 +136,8 @@ export class ProductListComponent implements OnInit {
     this.load();
   }
 
-  changePage(delta: number): void {
-    this.page += delta;
+  goToPage(page: number): void {
+    this.page = page;
     this.load();
   }
 
@@ -156,8 +172,11 @@ export class ProductListComponent implements OnInit {
         this.page = result.page;
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('No se pudieron cargar los productos. Inténtalo de nuevo.');
+      error: (error: unknown) => {
+        this.error.set(apiErrorMessage(
+          error,
+          'No se pudieron cargar los productos. Inténtalo de nuevo.',
+        ));
         this.loading.set(false);
       },
     });

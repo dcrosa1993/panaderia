@@ -1,4 +1,4 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
@@ -13,7 +13,23 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const token = session.accessToken();
   const bakeryId = session.activeBakeryId();
   const isBakeryScoped =
-    isApiRequest && /^\/api\/v1\/materials(?:\/|\?|$)/.test(url);
+    isApiRequest && /^\/api\/v1\/(?:materials|products)(?:\/|\?|$)/.test(url);
+
+  if (isBakeryScoped && !bakeryId) {
+    if (!router.url.startsWith('/select-bakery')) {
+      void router.navigate(['/select-bakery'], {
+        queryParams: { returnUrl: router.url },
+      });
+    }
+    return throwError(
+      () =>
+        new HttpErrorResponse({
+          status: 400,
+          statusText: 'Bad Request',
+          error: { code: 'BAKERY_CONTEXT_REQUIRED' },
+        }),
+    );
+  }
 
   let headers = request.headers;
   if (isApiRequest && token && !isLogin) {

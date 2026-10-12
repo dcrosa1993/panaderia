@@ -1,47 +1,44 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
 import { AuthService } from '../core/auth.service';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [
+    NzAlertModule,
+    NzButtonModule,
+    NzInputModule,
+    ReactiveFormsModule,
+  ],
   selector: 'app-login',
   template: `
-    <main class="auth-page">
-      <section class="auth-card">
-        <p class="eyebrow">PANADERÍA</p>
-        <h1>Inicia sesión</h1>
-        <p class="muted">Accede al espacio de trabajo de tu panadería.</p>
-        <form [formGroup]="form" (ngSubmit)="submit()">
-          <label for="email">Correo electrónico</label>
-          <input id="email" type="email" autocomplete="username" formControlName="email">
+    <main class="grid min-h-screen place-items-center bg-stone-50 px-4 py-10">
+      <section class="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-xl shadow-stone-900/5 sm:p-9">
+        <p class="text-xs font-extrabold tracking-[.14em] text-emerald-800">PANADERÍA</p>
+        <h1 class="my-2 font-serif text-3xl font-medium text-emerald-950">Inicia sesión</h1>
+        <p class="mb-6 text-stone-600">Accede al espacio de trabajo de tu panadería.</p>
+        <form class="grid gap-2" [formGroup]="form" (ngSubmit)="submit()">
+          <label class="mb-2 grid gap-2 text-sm font-medium text-stone-700" for="email">Correo electrónico
+            <input nz-input id="email" type="email" autocomplete="username" formControlName="email">
+          </label>
           @if (form.controls.email.touched && form.controls.email.invalid) {
-            <small>Escribe un correo electrónico válido.</small>
+            <p class="-mt-3 text-sm text-red-700">Escribe un correo electrónico válido.</p>
           }
-          <label for="password">Contraseña</label>
-          <input id="password" type="password" autocomplete="current-password" formControlName="password">
-          @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-          <button type="submit" [disabled]="form.invalid || loading()">
+          <label class="mb-2 grid gap-2 text-sm font-medium text-stone-700" for="password">Contraseña
+            <input nz-input id="password" type="password" autocomplete="current-password" formControlName="password">
+          </label>
+          @if (error()) { <nz-alert class="mb-4 block" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          <button nz-button nzType="primary" class="mt-2 w-full" type="submit" [disabled]="form.invalid || loading()">
             {{ loading() ? 'Ingresando…' : 'Ingresar' }}
           </button>
         </form>
       </section>
     </main>
   `,
-  styles: [`
-    .auth-page { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; }
-    .auth-card { width: min(100%, 27rem); padding: 2rem; background: white; border: 1px solid #e4e6df; border-radius: 1rem; box-shadow: 0 18px 50px #26382a12; }
-    .eyebrow { color: #346b43; font-size: .75rem; font-weight: 800; letter-spacing: .14em; }
-    h1 { margin: .5rem 0; font-family: Georgia, serif; font-size: 2rem; }
-    .muted { color: #66716a; margin-bottom: 1.5rem; }
-    form { display: grid; gap: .65rem; }
-    label { font-weight: 650; margin-top: .4rem; }
-    input { width: 100%; border: 1px solid #cbd4ca; border-radius: .55rem; padding: .75rem; font: inherit; }
-    small, .error { color: #a33127; }
-    button { margin-top: .75rem; padding: .8rem; border: 0; border-radius: .55rem; color: white; background: #28643a; font: inherit; font-weight: 700; cursor: pointer; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-  `],
 })
 export class LoginComponent {
   private readonly formBuilder = inject(FormBuilder);
