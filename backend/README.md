@@ -21,15 +21,23 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+## Backend API
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+NestJS API for the Panadería Costing Platform. The API is versioned under
+`/api/v1`; PostgreSQL access uses the generated Prisma Client and the
+`@prisma/adapter-pg` adapter.
 
 ## Project setup
 
 ```bash
-$ npm install
+npm install
+Copy-Item .env.example .env
+npx prisma generate
 ```
+
+Set `DATABASE_URL` in the ignored `.env` file to the local PostgreSQL instance
+on `localhost:5433`. `PORT` defaults to `3000`. `FRONTEND_ORIGIN` must be one
+HTTP(S) origin; in development it defaults to `http://localhost:4200`.
 
 ## Compile and run the project
 
@@ -48,14 +56,19 @@ $ npm run start:prod
 
 ```bash
 # unit tests
-$ npm run test
+npm run test
 
 # e2e tests
-$ npm run test:e2e
+npm run test:e2e
 
 # test coverage
-$ npm run test:cov
+npm run test:cov
 ```
+
+Liveness is available at `/api/v1/health/liveness`. Readiness at
+`/api/v1/health/readiness` runs `SELECT 1` against PostgreSQL and returns
+HTTP 503 if the database is unavailable. Swagger is not configured in this
+backend yet.
 
 ## Deployment
 
