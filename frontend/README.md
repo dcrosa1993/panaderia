@@ -14,6 +14,19 @@ Once the server is running, open your browser and navigate to `http://localhost:
 The development proxy in `proxy.conf.json` forwards `/api/v1/**` to the
 backend. Production hosting must route the same API path to the NestJS service.
 
+## Products and recipes
+
+After signing in and selecting a bakery, open `/products` to search and filter
+products. An `ADMIN` or `EDITOR` can create a product, open its detail page,
+create a recipe draft, add active materials and compatible units, save, and
+publish with a calendar effective date. Published recipes are read-only; create
+a new draft to make later changes. `VIEWER` accounts can browse products and
+recipe history but do not see write actions.
+
+The UI uses the real `/api/v1` endpoints and does not calculate recipe costs.
+An active material with no current price remains available; the editor shows
+that missing price as an informational warning.
+
 ## Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:

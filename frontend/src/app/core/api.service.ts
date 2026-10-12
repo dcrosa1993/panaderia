@@ -9,8 +9,13 @@ import {
   MaterialPriceHistory,
   MeasurementDimension,
   MeasurementUnit,
+  PaginatedProducts,
   PaginatedMaterials,
   PricePreview,
+  Product,
+  ProductStatus,
+  RecipeVersionDetail,
+  RecipeVersionSummary,
 } from './api.models';
 
 const API_BASE = '/api/v1';
@@ -107,6 +112,113 @@ export class ApiService {
     return this.http.post<MaterialPriceHistory['items'][number]>(
       `${API_BASE}/materials/${materialId}/prices`,
       input,
+    );
+  }
+
+  products(filters: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    status?: ProductStatus | '';
+  }) {
+    let params = new HttpParams()
+      .set('page', filters.page)
+      .set('pageSize', filters.pageSize);
+    if (filters.search) params = params.set('search', filters.search);
+    if (filters.status) params = params.set('status', filters.status);
+    return this.http.get<PaginatedProducts>(`${API_BASE}/products`, { params });
+  }
+
+  product(productId: string) {
+    return this.http.get<Product>(`${API_BASE}/products/${productId}`);
+  }
+
+  createProduct(input: {
+    name: string;
+    description?: string | null;
+    salesUnitId: string;
+  }) {
+    return this.http.post<Product>(`${API_BASE}/products`, input);
+  }
+
+  updateProduct(
+    productId: string,
+    input: {
+      name?: string;
+      description?: string | null;
+      status?: ProductStatus;
+      salesUnitId?: string;
+    },
+  ) {
+    return this.http.patch<Product>(`${API_BASE}/products/${productId}`, input);
+  }
+
+  recipeVersions(productId: string) {
+    return this.http.get<RecipeVersionSummary[]>(
+      `${API_BASE}/products/${productId}/recipe-versions`,
+    );
+  }
+
+  createRecipeVersion(
+    productId: string,
+    input?: {
+      outputQuantity?: string;
+      outputUnitId?: string;
+      preparationNotes?: string | null;
+    },
+  ) {
+    return this.http.post<{
+      id: string;
+      versionNumber: number;
+      clonedFromPublished: boolean;
+    }>(`${API_BASE}/products/${productId}/recipe-versions`, input ?? {});
+  }
+
+  recipeVersion(productId: string, versionId: string) {
+    return this.http.get<RecipeVersionDetail>(
+      `${API_BASE}/products/${productId}/recipe-versions/${versionId}`,
+    );
+  }
+
+  updateRecipeVersion(
+    productId: string,
+    versionId: string,
+    input: {
+      outputQuantity?: string;
+      outputUnitId?: string;
+      preparationNotes?: string | null;
+    },
+  ) {
+    return this.http.patch<RecipeVersionDetail>(
+      `${API_BASE}/products/${productId}/recipe-versions/${versionId}`,
+      input,
+    );
+  }
+
+  replaceRecipeMaterials(
+    productId: string,
+    versionId: string,
+    items: Array<{
+      materialId: string;
+      quantity: string;
+      unitId: string;
+      notes?: string | null;
+    }>,
+  ) {
+    return this.http.put<RecipeVersionDetail>(
+      `${API_BASE}/products/${productId}/recipe-versions/${versionId}/materials`,
+      { items },
+    );
+  }
+
+  publishRecipeVersion(
+    productId: string,
+    versionId: string,
+    effectiveFrom: string,
+  ) {
+    return this.http.post<RecipeVersionDetail>(
+      `${API_BASE}/products/${productId}/recipe-versions/${versionId}/publish`,
+      { effectiveFrom },
     );
   }
 }

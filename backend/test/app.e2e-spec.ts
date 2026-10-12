@@ -354,6 +354,25 @@ describe('API (e2e)', () => {
       .expect(403);
   });
 
+  it('denies a viewer writes to the products API before persistence', async () => {
+    const token = await login();
+    membershipFindUnique.mockResolvedValueOnce({
+      role: 'VIEWER',
+      status: 'ACTIVE',
+      bakery: { status: 'ACTIVE' },
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/products')
+      .set('Authorization', 'Bearer'.concat(' ', token))
+      .set('X-Bakery-Id', testBakeryId)
+      .send({
+        name: 'Pan',
+        salesUnitId: '3c6b9a21-7368-4dc4-9ed6-a532580e6c70',
+      })
+      .expect(403);
+  });
+
   async function login(): Promise<string> {
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/login')

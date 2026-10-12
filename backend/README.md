@@ -91,6 +91,33 @@ unique material/start-date key do not guarantee exclusion under every
 concurrent interleaving. Avoid concurrent price-history writes for the same
 material until the database model can provide that guarantee.
 
+## Products and recipe versions
+
+The product API is scoped to the authenticated bakery selected with
+`X-Bakery-Id`. `ADMIN` and `EDITOR` can write; `VIEWER` is read-only.
+
+- `GET /api/v1/products?search=&status=&page=1&pageSize=20` lists products
+  with pagination and a recipe summary.
+- `POST /api/v1/products` accepts `name`, optional `description`, and
+  `salesUnitId`.
+- `GET` and `PATCH /api/v1/products/:productId` read and update a product.
+- `GET /api/v1/products/:productId/recipe-versions` lists recipe history;
+  `POST` creates a server-numbered draft, cloning the most recently effective
+  published recipe where one exists.
+- `GET` and `PATCH /api/v1/products/:productId/recipe-versions/:versionId`
+  read or update a draft.
+- `PUT /api/v1/products/:productId/recipe-versions/:versionId/materials`
+  replaces the full draft ingredient list atomically.
+- `POST /api/v1/products/:productId/recipe-versions/:versionId/publish`
+  accepts `{ "effectiveFrom": "YYYY-MM-DD" }` and publishes the draft.
+
+Recipe quantities and yields are decimal strings. Published versions are
+read-only, and a later publication closes an open prior period on the preceding
+calendar day. Serializable transactions detect many concurrent changes, but
+the schema has no exclusion constraint for date-range overlap; this does not
+guarantee protection from every concurrent publication interleaving. Material
+prices are informational and are not required to save or publish a recipe.
+
 ## Authentication and bakery access
 
 - `POST /api/v1/auth/login` accepts `{ "email": "...", "password": "..." }`

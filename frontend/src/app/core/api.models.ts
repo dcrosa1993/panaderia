@@ -16,6 +16,8 @@ export type MeasurementDimension =
   | 'OTHER';
 
 export type MembershipRole = 'ADMIN' | 'EDITOR' | 'VIEWER';
+export type ProductStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+export type RecipeVersionStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export interface AuthenticatedUser {
   id: string;
@@ -87,4 +89,66 @@ export interface PricePreview {
   baseUnit: MeasurementUnit;
   normalizedQuantityInBaseUnit: string;
   pricePerBaseUnitCUP: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ProductStatus;
+  salesUnit: Pick<MeasurementUnit, 'id' | 'code' | 'name' | 'dimension'>;
+  recipeSummary: {
+    draftVersionNumber: number | null;
+    publishedVersion: {
+      versionNumber: number;
+      outputQuantity: string;
+      outputUnit: Pick<MeasurementUnit, 'id' | 'code' | 'name'>;
+      effectiveFrom: string | null;
+      effectiveTo: string | null;
+    } | null;
+    recipeStatus: 'NO_RECIPE' | 'DRAFT_AVAILABLE' | 'PUBLISHED';
+    versionCount?: number;
+  };
+}
+
+export interface PaginatedProducts {
+  items: Product[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface RecipeVersionSummary {
+  id: string;
+  versionNumber: number;
+  status: RecipeVersionStatus;
+  outputQuantity: string;
+  outputUnit: Pick<MeasurementUnit, 'id' | 'code' | 'name'>;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  materialCount: number;
+}
+
+export interface RecipeMaterialLine {
+  id: string;
+  materialId: string;
+  material: Pick<Material, 'id' | 'name' | 'kind' | 'isActive' | 'baseUnit'>;
+  quantity: string;
+  unit: Pick<MeasurementUnit, 'id' | 'code' | 'name' | 'dimension'>;
+  position: number;
+  notes: string | null;
+}
+
+export interface RecipeVersionDetail {
+  id: string;
+  productId: string;
+  versionNumber: number;
+  status: RecipeVersionStatus;
+  outputQuantity: string;
+  outputUnit: Pick<MeasurementUnit, 'id' | 'code' | 'name' | 'dimension'>;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  preparationNotes: string | null;
+  materials: RecipeMaterialLine[];
 }

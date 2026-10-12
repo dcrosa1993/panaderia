@@ -19,6 +19,22 @@
       timeout: 5s
       retries: 10
       start_period: 10s
+  pgadmin:
+      image: dpage/pgadmin4:latest
+      container_name: pgadmin
+      restart: unless-stopped
+
+      environment:
+        PGADMIN_DEFAULT_EMAIL: denismaycr@gmail.com
+        PGADMIN_DEFAULT_PASSWORD: Denismay2!
+        PGADMIN_CONFIG_SERVER_MODE: "True"
+
+      ports:
+        - "5050:80"
+
+      volumes:
+        - pgadmin_data:/var/lib/pgadmin
 
 volumes:
   panaderia_postgres_data:
+  pgadmin_data:
