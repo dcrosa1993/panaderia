@@ -3,7 +3,7 @@ name: Museo Virtual Frontend
 on:
   push:
     branches:
-      - develop
+      - dev
 
 jobs:
   build:
@@ -31,9 +31,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: denismaycr/personal_projects:cv_frontend_latest
+          tags: denismaycr/personal_projects:panaderia_frontend_latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-
 
