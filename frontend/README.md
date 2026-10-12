@@ -4,13 +4,15 @@ This project was generated using [Angular CLI](https://github.com/angular/angula
 
 ## Development server
 
-To start a local development server, run:
+Start the backend on port `3000`, then start the Angular development server:
 
 ```bash
 ng serve
 ```
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+The development proxy in `proxy.conf.json` forwards `/api/v1/**` to the
+backend. Production hosting must route the same API path to the NestJS service.
 
 ## Code scaffolding
 
@@ -43,6 +45,14 @@ To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use th
 ```bash
 ng test
 ```
+
+## Session storage
+
+The MVP keeps the short-lived access token in `sessionStorage`, cleared when
+the browser tab session ends. This is a practical persistence choice, not
+protection against cross-site scripting (XSS): JavaScript executing on the
+origin can read it. Avoid unsafe HTML APIs such as `innerHTML` with untrusted
+data, and do not store passwords in browser storage.
 
 ## Running end-to-end tests
 

@@ -74,6 +74,23 @@ Liveness is available at `/api/v1/health/liveness`. Readiness at
 HTTP 503 if the database is unavailable. Swagger is not configured in this
 backend yet.
 
+## Materials catalog
+
+`GET /api/v1/measurement-units` lists active global units and does not require
+a bakery context. The materials and price-history endpoints require an
+authenticated user, an active membership selected through `X-Bakery-Id`, and
+the appropriate membership role. The existing `prisma/seed.ts` contains
+idempotent measurement-unit upserts. After reviewing the seed and choosing the
+intended database, run `npx prisma db seed` from this directory to populate the
+catalog; it is intentionally not run as part of build or startup.
+
+Historical prices are accepted chronologically and an open prior period is
+closed to the day before the new period starts. The database schema has no
+exclusion constraint for overlapping date ranges, so the transaction and
+unique material/start-date key do not guarantee exclusion under every
+concurrent interleaving. Avoid concurrent price-history writes for the same
+material until the database model can provide that guarantee.
+
 ## Authentication and bakery access
 
 - `POST /api/v1/auth/login` accepts `{ "email": "...", "password": "..." }`
