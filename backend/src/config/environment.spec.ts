@@ -3,6 +3,7 @@ import { loadEnvironment } from './environment.js';
 describe('loadEnvironment', () => {
   const baseEnvironment: NodeJS.ProcessEnv = {
     DATABASE_URL: 'postgresql://user:placeholder@localhost:5433/panaderia',
+    JWT_SECRET: 'local-test-secret-with-at-least-32-bytes',
     NODE_ENV: 'development',
   };
 
@@ -10,7 +11,14 @@ describe('loadEnvironment', () => {
     expect(loadEnvironment(baseEnvironment)).toEqual({
       port: 3000,
       frontendOrigin: 'http://localhost:4200',
+      jwtSecret: 'local-test-secret-with-at-least-32-bytes',
     });
+  });
+
+  it('requires a sufficiently long JWT secret', () => {
+    expect(() =>
+      loadEnvironment({ ...baseEnvironment, JWT_SECRET: 'too-short' }),
+    ).toThrow('JWT_SECRET must contain at least 32 bytes.');
   });
 
   it('requires a frontend origin outside development', () => {

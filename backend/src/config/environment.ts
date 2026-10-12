@@ -1,6 +1,7 @@
 export interface AppEnvironment {
   port: number;
   frontendOrigin: string;
+  jwtSecret: string;
 }
 
 export function loadEnvironment(
@@ -26,6 +27,11 @@ export function loadEnvironment(
   }
   if (!parsedDatabaseUrl.hostname || parsedDatabaseUrl.pathname.length < 2) {
     throw new Error('DATABASE_URL must include a host and database name.');
+  }
+
+  const jwtSecret = environment.JWT_SECRET;
+  if (!jwtSecret || Buffer.byteLength(jwtSecret, 'utf8') < 32) {
+    throw new Error('JWT_SECRET must contain at least 32 bytes.');
   }
 
   const rawPort = environment.PORT ?? '3000';
@@ -64,5 +70,5 @@ export function loadEnvironment(
     throw new Error('FRONTEND_ORIGIN must be a valid HTTP(S) origin.');
   }
 
-  return { port, frontendOrigin: parsedOrigin.origin };
+  return { port, frontendOrigin: parsedOrigin.origin, jwtSecret };
 }

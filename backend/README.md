@@ -38,6 +38,10 @@ npx prisma generate
 Set `DATABASE_URL` in the ignored `.env` file to the local PostgreSQL instance
 on `localhost:5433`. `PORT` defaults to `3000`. `FRONTEND_ORIGIN` must be one
 HTTP(S) origin; in development it defaults to `http://localhost:4200`.
+`JWT_SECRET` is required and must contain at least 32 bytes. Generate a fresh
+value locally, for example with
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`,
+and keep it only in `.env`.
 
 ## Compile and run the project
 
@@ -69,6 +73,23 @@ Liveness is available at `/api/v1/health/liveness`. Readiness at
 `/api/v1/health/readiness` runs `SELECT 1` against PostgreSQL and returns
 HTTP 503 if the database is unavailable. Swagger is not configured in this
 backend yet.
+
+## Authentication and bakery access
+
+- `POST /api/v1/auth/login` accepts `{ "email": "...", "password": "..." }`
+  and returns a 15-minute JWT Bearer access token.
+- `GET /api/v1/auth/me` and `GET /api/v1/bakeries` require that access token.
+- Future bakery-scoped routes can use `@RequireBakeryContext(...)`,
+  `@CurrentUser()` and `@CurrentBakeryId()`. The guard validates the
+  `X-Bakery-Id` UUID against the authenticated user's active membership and
+  the bakery's active status; roles are scoped to that membership.
+
+No public signup is provided. To create the initial bakery administrator,
+configure `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (at least 12
+UTF-8 bytes), `BOOTSTRAP_ADMIN_NAME` and `BOOTSTRAP_BAKERY_NAME` in the ignored
+`.env`, then explicitly run `npm run bootstrap:admin`. The command refuses an
+existing normalized email or any existing account/bakery and does not run as
+part of application startup.
 
 ## Deployment
 
