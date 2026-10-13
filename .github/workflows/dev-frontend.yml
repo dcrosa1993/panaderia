@@ -37,4 +37,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
+            BASE_URL=https://panaderia-api.may.cu
 
