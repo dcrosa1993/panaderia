@@ -253,7 +253,16 @@ describe('ProductsService', () => {
       outputQuantity: new Prisma.Decimal('20'),
       outputUnitId: unitId,
       preparationNotes: 'Publicada',
-      laborOperations: [],
+      laborOperations: [
+        {
+          laborRoleId: 'role-a',
+          operationName: 'Amasado',
+          durationMinutes: new Prisma.Decimal('15'),
+          workersCount: new Prisma.Decimal('2'),
+          position: 1,
+          notes: 'Manual',
+        },
+      ],
       materials: [
         {
           materialId,
@@ -283,6 +292,8 @@ describe('ProductsService', () => {
 
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({
+        bakeryId,
+        productId,
         versionNumber: 3,
         outputQuantity: published.outputQuantity,
         outputUnitId: unitId,
@@ -290,12 +301,23 @@ describe('ProductsService', () => {
         materials: {
           create: [
             {
-              bakeryId,
               materialId,
               quantity: published.materials[0].quantity,
               unitId,
               position: 2,
               notes: 'Tamizada',
+            },
+          ],
+        },
+        laborOperations: {
+          create: [
+            {
+              laborRoleId: 'role-a',
+              operationName: 'Amasado',
+              durationMinutes: published.laborOperations[0].durationMinutes,
+              workersCount: published.laborOperations[0].workersCount,
+              position: 1,
+              notes: 'Manual',
             },
           ],
         },

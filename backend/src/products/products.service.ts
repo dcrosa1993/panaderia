@@ -392,7 +392,6 @@ export class ProductsService {
                 ? {
                     materials: {
                       create: published.materials.map((line) => ({
-                        bakeryId,
                         materialId: line.materialId,
                         quantity: line.quantity,
                         unitId: line.unitId,
@@ -406,7 +405,6 @@ export class ProductsService {
                 ? {
                     laborOperations: {
                       create: published.laborOperations.map((operation) => ({
-                        bakeryId,
                         laborRoleId: operation.laborRoleId,
                         operationName: operation.operationName,
                         durationMinutes: operation.durationMinutes,
