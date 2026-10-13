@@ -1,17 +1,17 @@
-name: Panaderia Backend
+name: Panaderia Backend Images
 
 on:
   push:
     branches:
       - dev
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+permissions:
+  contents: read
+  packages: write
 
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,25 +24,25 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          install: true
 
-      - name: Build and push image with Build Cloud
-        uses: docker/build-push-action@v5
+      - name: Build and push backend runtime image
+        uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
+          target: runtime
           push: true
           tags: denismaycr/personal_projects:panaderia_backend_latest
-          no-cache: true
-          build-args: |
-            NODE_ENV=development
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            PORT=3000
-            FRONTEND_ORIGIN=https://panaderia.may.cu
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            BOOTSTRAP_ADMIN_EMAIL=${{ secrets.BOOTSTRAP_ADMIN_EMAIL }}
-            BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
-            BOOTSTRAP_ADMIN_NAME=${{ secrets.BOOTSTRAP_ADMIN_NAME }}
-            BOOTSTRAP_BAKERY_NAME=${{ secrets.BOOTSTRAP_BAKERY_NAME }}
+          cache-from: type=gha,scope=panaderia-backend-runtime
+          cache-to: type=gha,mode=max,scope=panaderia-backend-runtime
 
+      - name: Build and push production migrator image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          target: migrator
+          push: true
+          tags: denismaycr/personal_projects:panaderia_migrator_latest
+          cache-from: type=gha,scope=panaderia-backend-migrator
+          cache-to: type=gha,mode=max,scope=panaderia-backend-migrator
