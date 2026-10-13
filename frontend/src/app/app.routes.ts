@@ -24,6 +24,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'economy',
+        canActivate: [bakerySelectionGuard],
+        loadComponent: () =>
+          import('./economy/economy.component').then(
+            (module) => module.EconomyComponent,
+          ),
+      },
+      {
         path: 'materials',
         canActivate: [bakerySelectionGuard],
         children: [
@@ -61,6 +69,13 @@ export const routes: Routes = [
         path: 'products',
         canActivate: [bakerySelectionGuard],
         children: [
+          {
+            path: ':productId/costs',
+            loadComponent: () =>
+              import('./products/product-costing.component').then(
+                (module) => module.ProductCostingComponent,
+              ),
+          },
           {
             path: '',
             loadComponent: () =>

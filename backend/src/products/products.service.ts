@@ -91,6 +91,21 @@ const versionDetailSelect = {
       },
     },
   },
+  laborOperations: {
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      laborRoleId: true,
+      operationName: true,
+      durationMinutes: true,
+      workersCount: true,
+      position: true,
+      notes: true,
+      laborRole: {
+        select: { id: true, name: true, isActive: true },
+      },
+    },
+  },
 } satisfies Prisma.RecipeVersionSelect;
 
 type ProductRecord = Prisma.ProductGetPayload<{
@@ -334,6 +349,17 @@ export class ProductsService {
                   notes: true,
                 },
               },
+              laborOperations: {
+                orderBy: [{ position: 'asc' }, { id: 'asc' }],
+                select: {
+                  laborRoleId: true,
+                  operationName: true,
+                  durationMinutes: true,
+                  workersCount: true,
+                  position: true,
+                  notes: true,
+                },
+              },
             },
           });
 
@@ -372,6 +398,21 @@ export class ProductsService {
                         unitId: line.unitId,
                         position: line.position,
                         notes: line.notes,
+                      })),
+                    },
+                  }
+                : {}),
+              ...(published && published.laborOperations.length > 0
+                ? {
+                    laborOperations: {
+                      create: published.laborOperations.map((operation) => ({
+                        bakeryId,
+                        laborRoleId: operation.laborRoleId,
+                        operationName: operation.operationName,
+                        durationMinutes: operation.durationMinutes,
+                        workersCount: operation.workersCount,
+                        position: operation.position,
+                        notes: operation.notes,
                       })),
                     },
                   }
@@ -865,6 +906,16 @@ function serializeVersion(version: VersionDetailRecord) {
       unit: line.unit,
       position: line.position,
       notes: line.notes,
+    })),
+    laborOperations: version.laborOperations.map((operation) => ({
+      id: operation.id,
+      laborRoleId: operation.laborRoleId,
+      laborRole: operation.laborRole,
+      operationName: operation.operationName,
+      durationMinutes: operation.durationMinutes.toString(),
+      workersCount: operation.workersCount.toString(),
+      position: operation.position,
+      notes: operation.notes,
     })),
   };
 }

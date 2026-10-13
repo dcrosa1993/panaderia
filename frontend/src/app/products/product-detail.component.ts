@@ -30,6 +30,7 @@ import { SessionStore } from '../core/session-store.service';
             <p class="muted">{{ data.description || 'Sin descripción' }} · Unidad de venta: {{ data.salesUnit.name }} ({{ data.salesUnit.code }})</p>
           </div>
           @if (canEdit) { <a nz-button nzType="default" [routerLink]="['/products', data.id, 'edit']">Editar producto</a> }
+          <a nz-button nzType="primary" [routerLink]="['/products', data.id, 'costs']">Costes y escenarios</a>
         </header>
         @if (canEdit) {
           <section class="panel">

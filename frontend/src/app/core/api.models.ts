@@ -151,4 +151,144 @@ export interface RecipeVersionDetail {
   effectiveTo: string | null;
   preparationNotes: string | null;
   materials: RecipeMaterialLine[];
+  laborOperations: RecipeLaborOperation[];
+}
+
+export interface RecipeLaborOperation {
+  id: string;
+  laborRoleId: string;
+  laborRole: { id: string; name: string; isActive: boolean };
+  operationName: string;
+  durationMinutes: string;
+  workersCount: string;
+  position: number;
+  notes: string | null;
+}
+
+export interface CostCalculationLine {
+  id: string;
+  lineType: string;
+  descriptionSnapshot: string;
+  quantity: string | null;
+  unitNameSnapshot: string | null;
+  unitCostCUP: string | null;
+  totalCUP: string | null;
+  detailsSnapshot: unknown;
+}
+
+export interface CostCalculation {
+  id: string;
+  recipeVersionId: string;
+  valuationDate: string;
+  status: 'COMPLETE' | 'INCOMPLETE' | 'FAILED';
+  materialCostCUP: string | null;
+  laborCostCUP: string | null;
+  overheadCostCUP: string | null;
+  totalProductionCostCUP: string | null;
+  outputQuantity: string | null;
+  outputUnitSnapshot: string | null;
+  unitCostCUP: string | null;
+  incompleteReasons: Array<{ category: string; code: string; message: string }>;
+  inputSnapshot?: unknown;
+  lines?: CostCalculationLine[];
+  createdAt?: string;
+}
+
+export interface LaborRole {
+  id: string;
+  name: string;
+  isActive: boolean;
+  currentRate?: string | null;
+}
+
+export interface LaborRate {
+  id: string;
+  hourlyRateCUP: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  notes: string | null;
+}
+
+export interface OverheadExpense {
+  id: string;
+  name: string;
+  category: string;
+  amountCUP: string;
+  periodStart: string;
+  periodEnd: string;
+  allocationMethod: string;
+  allocationBaseQuantity: string | null;
+  allocationUnitId: string | null;
+  allocationUnit: Pick<MeasurementUnit, 'id' | 'code' | 'name' | 'dimension'> | null;
+  notes: string | null;
+}
+
+export interface TaxRuleVersion {
+  id: string;
+  versionNumber: number;
+  calculationMethod: string;
+  taxBase: string;
+  rate: string | null;
+  fixedAmountCUP: string | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  verificationStatus: string;
+}
+
+export interface TaxRule {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  versions: TaxRuleVersion[];
+}
+
+export interface TaxAssignment {
+  id: string;
+  enabled: boolean;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  configurationNotes: string | null;
+  taxRule: { code: string; name: string; category: string };
+  taxRuleVersion: Pick<TaxRuleVersion, 'versionNumber' | 'calculationMethod' | 'taxBase' | 'rate' | 'verificationStatus'>;
+}
+
+export interface PriceScenario {
+  id: string;
+  calculationId: string;
+  name: string;
+  status: 'CALCULATED' | 'INCOMPLETE' | 'DRAFT' | 'FAILED';
+  salePriceCUP: string;
+  projectedQuantity: string;
+  salePriceTaxTreatment: string;
+  discountsReturnsCUP: string;
+  grossSalesCUP: string | null;
+  netSalesCUP: string | null;
+  costOfSalesCUP: string | null;
+  otherOperatingExpensesCUP: string | null;
+  salesTaxCUP: string | null;
+  profitBeforeProfitTaxCUP: string | null;
+  profitTaxCUP: string | null;
+  profitAfterTaxCUP: string | null;
+  netMarginPercent: string | null;
+  calculationSnapshot: {
+    incompleteReasons?: Array<{ category: string; code: string; message: string }>;
+    warnings?: string[];
+    preTaxRevenueEstimateCUP?: string | null;
+    customerTotalCUP?: string | null;
+    breakEvenPriceCUP?: string | null;
+    breakEvenPriceTaxTreatment?: string;
+    recommendedPriceCUP?: string | null;
+    recommendedPriceTaxTreatment?: string;
+  } | null;
+  taxLines: Array<{
+    id: string;
+    taxNameSnapshot: string;
+    taxBaseSnapshot: string;
+    baseAmountCUP: string | null;
+    rateApplied: string | null;
+    taxAmountCUP: string | null;
+    verificationStatusSnapshot: string;
+    notesSnapshot: string | null;
+  }>;
 }

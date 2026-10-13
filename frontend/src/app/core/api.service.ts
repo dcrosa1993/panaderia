@@ -4,6 +4,9 @@ import {
   AccessTokenResponse,
   AuthenticatedUser,
   Bakery,
+  CostCalculation,
+  LaborRate,
+  LaborRole,
   Material,
   MaterialKind,
   MaterialPriceHistory,
@@ -14,8 +17,12 @@ import {
   PricePreview,
   Product,
   ProductStatus,
+  OverheadExpense,
+  PriceScenario,
   RecipeVersionDetail,
   RecipeVersionSummary,
+  TaxAssignment,
+  TaxRule,
 } from './api.models';
 
 const API_BASE = '/api/v1';
@@ -220,6 +227,125 @@ export class ApiService {
       `${API_BASE}/products/${productId}/recipe-versions/${versionId}/publish`,
       { effectiveFrom },
     );
+  }
+
+  replaceRecipeLaborOperations(
+    productId: string,
+    versionId: string,
+    items: Array<{
+      laborRoleId: string;
+      operationName: string;
+      durationMinutes: string;
+      workersCount: string;
+      notes?: string | null;
+    }>,
+  ) {
+    return this.http.put<RecipeVersionDetail>(
+      `${API_BASE}/products/${productId}/recipe-versions/${versionId}/labor-operations`,
+      { items },
+    );
+  }
+
+  laborRoles() {
+    return this.http.get<LaborRole[]>(`${API_BASE}/labor-roles`);
+  }
+
+  createLaborRole(name: string) {
+    return this.http.post<LaborRole>(`${API_BASE}/labor-roles`, { name });
+  }
+
+  updateLaborRole(id: string, input: { name?: string; isActive?: boolean }) {
+    return this.http.patch<LaborRole>(`${API_BASE}/labor-roles/${id}`, input);
+  }
+
+  laborRates(id: string) {
+    return this.http.get<LaborRate[]>(`${API_BASE}/labor-roles/${id}/rates`);
+  }
+
+  createLaborRate(id: string, input: {
+    hourlyRateCUP: string;
+    effectiveFrom: string;
+    effectiveTo?: string | null;
+    notes?: string | null;
+  }) {
+    return this.http.post<LaborRate>(`${API_BASE}/labor-roles/${id}/rates`, input);
+  }
+
+  overheadExpenses(filters?: { category?: string; asOf?: string }) {
+    let params = new HttpParams();
+    if (filters?.category) params = params.set('category', filters.category);
+    if (filters?.asOf) params = params.set('asOf', filters.asOf);
+    return this.http.get<OverheadExpense[]>(`${API_BASE}/overhead-expenses`, { params });
+  }
+
+  createOverheadExpense(input: Omit<OverheadExpense, 'id' | 'allocationUnit'>) {
+    return this.http.post<OverheadExpense>(`${API_BASE}/overhead-expenses`, input);
+  }
+
+  updateOverheadExpense(id: string, input: Partial<Omit<OverheadExpense, 'id' | 'allocationUnit'>>) {
+    return this.http.patch<OverheadExpense>(`${API_BASE}/overhead-expenses/${id}`, input);
+  }
+
+  costCalculations(productId: string) {
+    return this.http.get<CostCalculation[]>(`${API_BASE}/products/${productId}/cost-calculations`);
+  }
+
+  costCalculation(id: string) {
+    return this.http.get<CostCalculation>(`${API_BASE}/cost-calculations/${id}`);
+  }
+
+  calculateCost(productId: string, valuationDate: string, recipeVersionId?: string) {
+    return this.http.post<CostCalculation>(`${API_BASE}/products/${productId}/cost-calculations`, {
+      valuationDate,
+      ...(recipeVersionId ? { recipeVersionId } : {}),
+    });
+  }
+
+  taxRules() {
+    return this.http.get<TaxRule[]>(`${API_BASE}/tax-settings/rules`);
+  }
+
+  taxAssignments() {
+    return this.http.get<TaxAssignment[]>(`${API_BASE}/tax-settings/assignments`);
+  }
+
+  createTaxAssignment(input: {
+    taxRuleVersionId: string;
+    enabled: boolean;
+    effectiveFrom?: string | null;
+    effectiveTo?: string | null;
+    configurationNotes?: string | null;
+  }) {
+    return this.http.post<TaxAssignment>(`${API_BASE}/tax-settings/assignments`, input);
+  }
+
+  updateTaxAssignment(id: string, input: {
+    enabled?: boolean;
+    effectiveFrom?: string | null;
+    effectiveTo?: string | null;
+    configurationNotes?: string | null;
+  }) {
+    return this.http.patch<TaxAssignment>(`${API_BASE}/tax-settings/assignments/${id}`, input);
+  }
+
+  priceScenarios(calculationId: string) {
+    return this.http.get<PriceScenario[]>(`${API_BASE}/cost-calculations/${calculationId}/scenarios`);
+  }
+
+  createPriceScenario(calculationId: string, input: {
+    name: string;
+    salePriceCUP: string;
+    projectedQuantity: string;
+    salePriceTaxTreatment: string;
+    discountsReturnsCUP?: string;
+    otherOperatingExpensesCUP?: string;
+    targetNetMarginPercent?: string;
+  }) {
+    return this.http.post<PriceScenario>(`${API_BASE}/cost-calculations/${calculationId}/scenarios`, input);
+  }
+
+  priceScenario(id: string) {
+    return this.http.get<PriceScenario>(`${API_BASE}/price-scenarios/${id}`);
   }
 }
 

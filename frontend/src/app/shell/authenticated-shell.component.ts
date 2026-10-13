@@ -36,6 +36,9 @@ import { AuthService } from '../core/auth.service';
               <li nz-menu-item routerLink="/products" routerLinkActive="ant-menu-item-selected">
                 Productos y recetas
               </li>
+              <li nz-menu-item routerLink="/economy" routerLinkActive="ant-menu-item-selected">
+                Costes y tarifas
+              </li>
             </ul>
           </nav>
           <div class="ml-auto flex items-center gap-2">

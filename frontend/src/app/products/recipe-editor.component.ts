@@ -18,6 +18,7 @@ import { forkJoin } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { ApiService } from '../core/api.service';
 import {
+  LaborRole,
   Material,
   MeasurementUnit,
   Product,
@@ -31,6 +32,14 @@ type RecipeLineControls = {
   quantity: FormControl<string>;
   unitId: FormControl<string>;
   notes: FormControl<string>;
+};
+
+type LaborOperationInput = {
+  laborRoleId: string;
+  operationName: string;
+  durationMinutes: string;
+  workersCount: string;
+  notes: string;
 };
 
 @Component({
@@ -112,6 +121,54 @@ type RecipeLineControls = {
               </nz-table></div>
             }
           </section>
+          <section class="panel rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
+            <div class="section-heading">
+              <div><h2>Operaciones de mano de obra</h2><p class="muted">Tiempo por lote y personas asignadas a cada operación.</p></div>
+              @if (editable()) { <button nz-button nzType="default" type="button" (click)="addLaborOperation()">＋ Añadir operación</button> }
+            </div>
+            @if (laborOperations().length === 0) {
+              <p class="warning">No hay operaciones configuradas. El coste laboral quedará incompleto hasta añadirlas y publicar la receta.</p>
+            } @else {
+              <div class="grid">
+                @for (operation of laborOperations(); track $index; let i = $index) {
+                  <article class="operation rounded-lg border border-stone-200 p-4">
+                    <label>Nombre
+                      <input nz-input [value]="operation.operationName" [readonly]="!editable()" (input)="updateLaborOperation(i, 'operationName', $event)">
+                    </label>
+                    <label>Puesto
+                      <select [value]="operation.laborRoleId" [disabled]="!editable()" (change)="updateLaborOperation(i, 'laborRoleId', $event)">
+                        <option value="">Selecciona un puesto</option>
+                        @for (role of laborRoles(); track role.id) {
+                          <option [value]="role.id" [disabled]="!role.isActive">{{ role.name }}{{ role.isActive ? '' : ' · Inactivo' }}</option>
+                        }
+                      </select>
+                      @if (laborRole(operation.laborRoleId); as role) {
+                        <small class="muted">{{ role.currentRate ? 'Tarifa informativa vigente: ' + role.currentRate + ' CUP/h' : 'Sin tarifa vigente resoluble para hoy' }}</small>
+                      }
+                    </label>
+                    <div class="grid">
+                      <label>Minutos por lote
+                        <input nz-input inputmode="decimal" [value]="operation.durationMinutes" [readonly]="!editable()" (input)="updateLaborOperation(i, 'durationMinutes', $event)">
+                      </label>
+                      <label>Trabajadores
+                        <input nz-input inputmode="decimal" [value]="operation.workersCount" [readonly]="!editable()" (input)="updateLaborOperation(i, 'workersCount', $event)">
+                      </label>
+                    </div>
+                    <label>Notas
+                      <input nz-input [value]="operation.notes" [readonly]="!editable()" (input)="updateLaborOperation(i, 'notes', $event)">
+                    </label>
+                    @if (editable()) {
+                      <div class="operation-actions">
+                        <button nz-button nzType="default" type="button" (click)="moveLaborOperation(i, -1)" [disabled]="i === 0">Subir</button>
+                        <button nz-button nzType="default" type="button" (click)="moveLaborOperation(i, 1)" [disabled]="i === laborOperations().length - 1">Bajar</button>
+                        <button nz-button nzType="text" nzDanger type="button" (click)="removeLaborOperation(i)">Quitar</button>
+                      </div>
+                    }
+                  </article>
+                }
+              </div>
+            }
+          </section>
           @if (error()) { <nz-alert nzType="error" [nzMessage]="error()" nzShowIcon /> }
           @if (saved()) { <nz-alert nzType="success" nzMessage="El borrador quedó guardado." nzShowIcon /> }
           @if (editable()) {
@@ -162,6 +219,9 @@ type RecipeLineControls = {
     .publish { display: grid; justify-items: start; gap: .8rem; }
     .publish p { margin: 0; color: #69746b; }
     .publish label { max-width: 18rem; }
+    .operation { display: grid; gap: .8rem; }
+    .operation select { min-height: 2.5rem; padding: .45rem; border: 1px solid #d9ded7; border-radius: .45rem; background: white; }
+    .operation-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
     .state { padding: 2rem; text-align: center; }
     @media(max-width: 620px) { .grid { grid-template-columns: 1fr; } .section-heading { align-items: start; flex-direction: column; } }
   `],
@@ -178,6 +238,8 @@ export class RecipeEditorComponent implements OnInit {
   readonly version = signal<RecipeVersionDetail | null>(null);
   readonly units = signal<MeasurementUnit[]>([]);
   readonly materials = signal<Material[]>([]);
+  readonly laborRoles = signal<LaborRole[]>([]);
+  readonly laborOperations = signal<LaborOperationInput[]>([]);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly saved = signal(false);
@@ -239,6 +301,45 @@ export class RecipeEditorComponent implements OnInit {
     this.lines.removeAt(index);
   }
 
+  laborRole(id: string): LaborRole | undefined {
+    return this.laborRoles().find((role) => role.id === id);
+  }
+
+  addLaborOperation(): void {
+    if (!this.editable()) return;
+    const firstRole = this.laborRoles().find((role) => role.isActive);
+    this.laborOperations.update((items) => [
+      ...items,
+      { laborRoleId: firstRole?.id ?? '', operationName: '', durationMinutes: '', workersCount: '1', notes: '' },
+    ]);
+  }
+
+  removeLaborOperation(index: number): void {
+    if (!this.editable()) return;
+    this.laborOperations.update((items) => items.filter((_item, itemIndex) => itemIndex !== index));
+  }
+
+  moveLaborOperation(index: number, direction: -1 | 1): void {
+    if (!this.editable()) return;
+    this.laborOperations.update((items) => {
+      const next = [...items];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return items;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  updateLaborOperation(index: number, field: keyof LaborOperationInput, event: Event): void {
+    if (!this.editable()) return;
+    const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
+    this.laborOperations.update((items) =>
+      items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    );
+  }
+
   onMaterialChange(index: number): void {
     const line = this.lines.at(index);
     const selected = this.selectedMaterial(line.controls.materialId.value);
@@ -282,6 +383,16 @@ export class RecipeEditorComponent implements OnInit {
           })),
         ),
       ),
+      switchMap(() =>
+        this.api.replaceRecipeLaborOperations(
+          this.productId,
+          this.versionId,
+          this.laborOperations().map((operation) => ({
+            ...operation,
+            ...(operation.notes.trim() ? {} : { notes: null }),
+          })),
+        ),
+      ),
     ).subscribe({
       next: (version) => {
         this.version.set(version);
@@ -321,6 +432,16 @@ export class RecipeEditorComponent implements OnInit {
         );
       }),
       switchMap(() =>
+        this.api.replaceRecipeLaborOperations(
+          this.productId,
+          this.versionId,
+          this.laborOperations().map((operation) => ({
+            ...operation,
+            ...(operation.notes.trim() ? {} : { notes: null }),
+          })),
+        ),
+      ),
+      switchMap(() =>
         this.api.publishRecipeVersion(
           this.productId,
           this.versionId,
@@ -354,8 +475,9 @@ export class RecipeEditorComponent implements OnInit {
         pageSize: 100,
         isActive: true,
       }),
+      laborRoles: this.api.laborRoles(),
     }).subscribe({
-      next: ({ product, version, units, firstPage }) => {
+      next: ({ product, version, units, firstPage, laborRoles }) => {
         const additionalPages = Array.from(
           { length: Math.max(0, firstPage.totalPages - 1) },
           (_unused, index) =>
@@ -373,6 +495,14 @@ export class RecipeEditorComponent implements OnInit {
             this.product.set(product);
             this.version.set(version);
             this.units.set(units);
+            this.laborRoles.set(laborRoles);
+            this.laborOperations.set(version.laborOperations.map((operation) => ({
+              laborRoleId: operation.laborRoleId,
+              operationName: operation.operationName,
+              durationMinutes: operation.durationMinutes,
+              workersCount: operation.workersCount,
+              notes: operation.notes ?? '',
+            })));
             const existingMaterials = version.materials.map((line): Material => ({
               ...line.material,
               densityGramPerMl: null,

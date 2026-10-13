@@ -56,6 +56,7 @@ const detailVersion = {
       },
     },
   ],
+  laborOperations: [],
 };
 
 function setup(overrides: Record<string, unknown> = {}) {
@@ -252,6 +253,7 @@ describe('ProductsService', () => {
       outputQuantity: new Prisma.Decimal('20'),
       outputUnitId: unitId,
       preparationNotes: 'Publicada',
+      laborOperations: [],
       materials: [
         {
           materialId,
