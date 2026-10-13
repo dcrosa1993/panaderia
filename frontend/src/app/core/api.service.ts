@@ -24,8 +24,9 @@ import {
   TaxAssignment,
   TaxRule,
 } from './api.models';
+import { environment } from '../../environments/environment';
 
-const API_BASE = '/api/v1';
+const API_BASE = environment.apiBaseUrl;
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {

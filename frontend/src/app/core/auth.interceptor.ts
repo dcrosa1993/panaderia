@@ -2,18 +2,24 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
+import { environment } from '../../environments/environment';
 import { SessionStore } from './session-store.service';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const session = inject(SessionStore);
   const router = inject(Router);
   const url = request.urlWithParams;
-  const isApiRequest = url.startsWith('/api/v1/');
-  const isLogin = /^\/api\/v1\/auth\/login(?:\?|$)/.test(url);
+  const apiBaseUrl = environment.apiBaseUrl.replace(/\/$/, '');
+  const apiPath = url.startsWith(`${apiBaseUrl}/`)
+    ? url.slice(apiBaseUrl.length)
+    : '';
+  const isApiRequest = apiPath.length > 0;
+  const isLogin =
+    apiPath === '/auth/login' || apiPath.startsWith('/auth/login?');
   const token = session.accessToken();
   const bakeryId = session.activeBakeryId();
   const isBakeryScoped =
-    isApiRequest && /^\/api\/v1\/(?:materials|products)(?:\/|\?|$)/.test(url);
+    isApiRequest && /^\/(?:materials|products)(?:\/|\?|$)/.test(apiPath);
 
   if (isBakeryScoped && !bakeryId) {
     if (!router.url.startsWith('/select-bakery')) {
