@@ -1,3 +1,3 @@
 export const environment = {
-  apiBaseUrl: 'https://panaderia-api.may.cu/api/v1',
+  API_URL: 'https://panaderia-api.may.cu/api/v1',
 };

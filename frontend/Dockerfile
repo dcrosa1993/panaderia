@@ -10,6 +10,11 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+RUN cat > ./src/environments/environment.ts <<EOF
+export const environment = {
+  API_URL: '${BASE_URL}',
+};
+EOF
 RUN npm run build -- --configuration production \
     && mkdir -p /tmp/angular-dist \
     && INDEX_HTML="$(find dist -type f -name index.html -print -quit)" \
@@ -20,11 +25,8 @@ FROM nginx:stable-alpine AS runtime
 
 # Nginx official image substitutes ${API_UPSTREAM} in this template at startup.
 ENV API_UPSTREAM=${BASE_URL}
-RUN cat > ./src/environments/environment.ts <<EOF
-export const environment = {
-  apiBaseUrl: '${BASE_URL}',
-};
-EOF
+ENV BASE_URL=${BASE_URL}
+
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /tmp/angular-dist/ /usr/share/nginx/html/
 

@@ -26,7 +26,7 @@ import {
 } from './api.models';
 import { environment } from '../../environments/environment';
 
-const API_BASE = environment.apiBaseUrl;
+const API_BASE = environment.API_URL;
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {

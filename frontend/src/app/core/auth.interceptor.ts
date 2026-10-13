@@ -9,7 +9,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const session = inject(SessionStore);
   const router = inject(Router);
   const url = request.urlWithParams;
-  const apiBaseUrl = environment.apiBaseUrl.replace(/\/$/, '');
+  const apiBaseUrl = environment.API_URL.replace(/\/$/, '');
   const apiPath = url.startsWith(`${apiBaseUrl}/`)
     ? url.slice(apiBaseUrl.length)
     : '';
