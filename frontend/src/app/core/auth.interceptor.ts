@@ -19,7 +19,10 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const token = session.accessToken();
   const bakeryId = session.activeBakeryId();
   const isBakeryScoped =
-    isApiRequest && /^\/(?:materials|products)(?:\/|\?|$)/.test(apiPath);
+    isApiRequest &&
+    /^\/(?:materials|products|labor-roles|overhead-expenses|cost-calculations|price-scenarios|tax-settings\/assignments)(?:\/|\?|$)/.test(
+      apiPath,
+    );
 
   if (isBakeryScoped && !bakeryId) {
     if (!router.url.startsWith('/select-bakery')) {

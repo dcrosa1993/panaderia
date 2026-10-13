@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { forkJoin } from 'rxjs';
@@ -19,7 +20,7 @@ import { SessionStore } from '../core/session-store.service';
 
 @Component({
   standalone: true,
-  imports: [FormsModule, NzAlertModule, NzButtonModule, NzInputModule, NzSelectModule, NzTableModule],
+  imports: [FormsModule, NzAlertModule, NzButtonModule, NzInputModule, NzModalModule, NzSelectModule, NzTableModule],
   selector: 'app-economy',
   template: `
     <main class="page">
@@ -30,10 +31,7 @@ import { SessionStore } from '../core/session-store.service';
       <section class="panel">
         <h2>Puestos y tarifas por hora</h2>
         @if (canEdit) {
-          <div class="form-grid">
-            <label>Nuevo puesto<input nz-input [(ngModel)]="roleName" maxlength="140"></label>
-            <button nz-button nzType="primary" type="button" [disabled]="busy() || !roleName.trim()" (click)="createRole()">Crear puesto</button>
-          </div>
+          <button nz-button nzType="primary" type="button" (click)="roleModal.set(true)">Agregar puesto laboral</button>
         }
         @if (roles().length) {
           <div class="table-wrap"><nz-table [nzData]="roles()" [nzFrontPagination]="false" [nzShowPagination]="false">
@@ -50,13 +48,7 @@ import { SessionStore } from '../core/session-store.service';
         @if (selectedRoleId()) {
           <h3>Historial de tarifas</h3>
           @if (canEdit) {
-            <div class="form-grid">
-              <label>Tarifa por hora (CUP)<input nz-input inputmode="decimal" [(ngModel)]="rateValue"></label>
-              <label>Vigente desde<input nz-input type="date" [(ngModel)]="rateFrom"></label>
-              <label>Vigente hasta (opcional)<input nz-input type="date" [(ngModel)]="rateTo"></label>
-              <label>Nota<input nz-input [(ngModel)]="rateNotes" maxlength="500"></label>
-              <button nz-button nzType="primary" type="button" [disabled]="busy() || !rateValue || !rateFrom" (click)="createRate()">Añadir tarifa</button>
-            </div>
+            <button nz-button nzType="primary" type="button" (click)="rateModal.set(true)">Agregar tarifa</button>
           }
           @if (rates().length) {
             <div class="table-wrap"><nz-table [nzData]="rates()" [nzFrontPagination]="false" [nzShowPagination]="false">
@@ -79,31 +71,7 @@ import { SessionStore } from '../core/session-store.service';
           <button nz-button type="button" (click)="filterExpenses()">Aplicar filtros</button>
         </div>
         @if (canEdit) {
-          <div class="form-grid">
-            <label>Nombre<input nz-input [(ngModel)]="overhead.name" maxlength="180"></label>
-            <label>Categoría<nz-select [(ngModel)]="overhead.category">
-              @for (category of categories; track category) { <nz-option [nzValue]="category" [nzLabel]="categoryLabel(category)"></nz-option> }
-            </nz-select></label>
-            <label>Importe CUP<input nz-input inputmode="decimal" [(ngModel)]="overhead.amountCUP"></label>
-            <label>Inicio del período<input nz-input type="date" [(ngModel)]="overhead.periodStart"></label>
-            <label>Fin del período<input nz-input type="date" [(ngModel)]="overhead.periodEnd"></label>
-            <label>Método<nz-select [(ngModel)]="overhead.allocationMethod">
-              @for (method of methods; track method) { <nz-option [nzValue]="method" [nzLabel]="methodLabel(method)"></nz-option> }
-            </nz-select></label>
-            @if (overhead.allocationMethod !== 'BATCHES' && overhead.allocationMethod !== 'DIRECT_COST_PROPORTION') {
-              <label>Unidad de reparto<nz-select [(ngModel)]="overhead.allocationUnitId" nzAllowClear>
-                @for (unit of unitsForMethod(); track unit.id) { <nz-option [nzValue]="unit.id" [nzLabel]="unit.name + ' (' + unit.code + ')'"></nz-option> }
-              </nz-select></label>
-            }
-            <label>{{ baseLabel() }}<input nz-input inputmode="decimal" [(ngModel)]="overhead.allocationBaseQuantity"></label>
-            <label class="wide">Notas<input nz-input [(ngModel)]="overhead.notes"></label>
-            <div class="actions">
-              <button nz-button nzType="primary" type="button" [disabled]="busy() || !overhead.name || !overhead.amountCUP || !overhead.periodStart || !overhead.periodEnd || !overhead.allocationBaseQuantity" (click)="saveOverhead()">
-                {{ editingExpenseId ? 'Guardar cambios' : 'Añadir gasto' }}
-              </button>
-              @if (editingExpenseId) { <button nz-button type="button" (click)="clearExpense()">Cancelar edición</button> }
-            </div>
-          </div>
+          <button nz-button nzType="primary" type="button" (click)="openNewExpense()">Agregar gasto indirecto</button>
         }
         @if (expenses().length) {
           <div class="table-wrap"><nz-table [nzData]="expenses()" [nzFrontPagination]="false" [nzShowPagination]="false">
@@ -121,16 +89,7 @@ import { SessionStore } from '../core/session-store.service';
         <h2>Supuestos fiscales para escenarios</h2>
         <nz-alert nzType="warning" nzMessage="Supuesto fiscal no validado; no es una liquidación tributaria oficial." nzShowIcon />
         @if (canAdmin) {
-          <div class="form-grid">
-            <label>Regla y versión<nz-select [(ngModel)]="taxVersionId">
-              @for (version of taxVersions(); track version.id) { <nz-option [nzValue]="version.id" [nzLabel]="version.ruleName + ' · v' + version.versionNumber + ' · ' + (version.rate || '—') + ' · ' + version.verificationStatus"></nz-option> }
-            </nz-select></label>
-            <label>Vigente desde<input nz-input type="date" [(ngModel)]="taxFrom"></label>
-            <label>Vigente hasta (opcional)<input nz-input type="date" [(ngModel)]="taxTo"></label>
-            <label>Nota de configuración<input nz-input [(ngModel)]="taxNotes"></label>
-            <label class="checkbox"><input type="checkbox" [(ngModel)]="taxEnabled"> Habilitar explícitamente para simulaciones</label>
-            <button nz-button nzType="primary" type="button" [disabled]="busy() || !taxVersionId" (click)="assignTaxRule()">Asignar regla</button>
-          </div>
+          <button nz-button nzType="primary" type="button" (click)="taxModal.set(true)">Asignar regla fiscal</button>
         } @else if (!canEdit) {
           <p>Las reglas pendientes se usan solo cuando un administrador las asigna y habilita.</p>
         }
@@ -146,6 +105,67 @@ import { SessionStore } from '../core/session-store.service';
         } @else { <p>No hay reglas fiscales asignadas a esta panadería.</p> }
       </section>
     </main>
+    <nz-modal nzTitle="Agregar puesto laboral" [nzVisible]="roleModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="560">
+      <ng-container *nzModalContent>
+        <form #roleForm="ngForm" class="form-grid" (ngSubmit)="createRole()">
+          <label>Nombre del puesto<input nz-input name="roleName" [(ngModel)]="roleName" maxlength="140" required></label>
+          @if (error()) { <nz-alert class="wide" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          <div class="actions"><button nz-button nzType="primary" type="submit" [disabled]="busy() || roleForm.invalid">{{ busy() ? 'Guardando…' : 'Crear puesto' }}</button><button nz-button type="button" [disabled]="busy()" (click)="closeRoleModal(roleForm)">Cancelar</button></div>
+        </form>
+      </ng-container>
+    </nz-modal>
+    <nz-modal nzTitle="Agregar tarifa laboral" [nzVisible]="rateModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="680">
+      <ng-container *nzModalContent>
+        <form #rateForm="ngForm" class="form-grid" (ngSubmit)="createRate()">
+          <label>Tarifa por hora (CUP)<input nz-input name="rateValue" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="rateValue" required></label>
+          <label>Vigente desde<input nz-input name="rateFrom" type="date" [(ngModel)]="rateFrom" required></label>
+          <label>Vigente hasta (opcional)<input nz-input name="rateTo" type="date" [(ngModel)]="rateTo"></label>
+          <label>Nota<input nz-input name="rateNotes" [(ngModel)]="rateNotes" maxlength="500"></label>
+          @if (error()) { <nz-alert class="wide" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          <div class="actions"><button nz-button nzType="primary" type="submit" [disabled]="busy() || rateForm.invalid">{{ busy() ? 'Guardando…' : 'Guardar tarifa' }}</button><button nz-button type="button" [disabled]="busy()" (click)="closeRateModal(rateForm)">Cancelar</button></div>
+        </form>
+      </ng-container>
+    </nz-modal>
+    <nz-modal [nzTitle]="editingExpenseId ? 'Editar gasto indirecto' : 'Agregar gasto indirecto'" [nzVisible]="overheadModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="760">
+      <ng-container *nzModalContent>
+        <form #expenseForm="ngForm" class="form-grid" (ngSubmit)="saveOverhead()">
+          <label>Nombre<input nz-input name="overheadName" [(ngModel)]="overhead.name" maxlength="180" required></label>
+          <label>Categoría<nz-select name="overheadCategory" [(ngModel)]="overhead.category" required>
+            @for (category of categories; track category) { <nz-option [nzValue]="category" [nzLabel]="categoryLabel(category)"></nz-option> }
+          </nz-select></label>
+          <label>Importe CUP<input nz-input name="amountCUP" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="overhead.amountCUP" required></label>
+          <label>Inicio del período<input nz-input name="periodStart" type="date" [(ngModel)]="overhead.periodStart" required></label>
+          <label>Fin del período<input nz-input name="periodEnd" type="date" [(ngModel)]="overhead.periodEnd" required></label>
+          <label>Método<nz-select name="allocationMethod" [(ngModel)]="overhead.allocationMethod" required>
+            @for (method of methods; track method) { <nz-option [nzValue]="method" [nzLabel]="methodLabel(method)"></nz-option> }
+          </nz-select></label>
+          @if (overhead.allocationMethod !== 'BATCHES' && overhead.allocationMethod !== 'DIRECT_COST_PROPORTION') {
+            <label>Unidad de reparto<nz-select name="allocationUnitId" [(ngModel)]="overhead.allocationUnitId" [required]="true" nzAllowClear>
+              @for (unit of unitsForMethod(); track unit.id) { <nz-option [nzValue]="unit.id" [nzLabel]="unit.name + ' (' + unit.code + ')'"></nz-option> }
+            </nz-select></label>
+          }
+          <label>{{ baseLabel() }}<input nz-input name="allocationBaseQuantity" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="overhead.allocationBaseQuantity" required></label>
+          <label class="wide">Notas<input nz-input name="overheadNotes" [(ngModel)]="overhead.notes"></label>
+          @if (error()) { <nz-alert class="wide" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          <div class="actions"><button nz-button nzType="primary" type="submit" [disabled]="busy() || expenseForm.invalid">{{ busy() ? 'Guardando…' : (editingExpenseId ? 'Guardar cambios' : 'Añadir gasto') }}</button><button nz-button type="button" [disabled]="busy()" (click)="closeExpense(expenseForm)">Cancelar</button></div>
+        </form>
+      </ng-container>
+    </nz-modal>
+    <nz-modal nzTitle="Asignar regla fiscal" [nzVisible]="taxModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="680">
+      <ng-container *nzModalContent>
+        <form #taxForm="ngForm" class="form-grid" (ngSubmit)="assignTaxRule()">
+          <label>Regla y versión<nz-select name="taxVersionId" [(ngModel)]="taxVersionId" required>
+            @for (version of taxVersions(); track version.id) { <nz-option [nzValue]="version.id" [nzLabel]="version.ruleName + ' · v' + version.versionNumber + ' · ' + (version.rate || '—') + ' · ' + version.verificationStatus"></nz-option> }
+          </nz-select></label>
+          <label>Vigente desde<input nz-input name="taxFrom" type="date" [(ngModel)]="taxFrom"></label>
+          <label>Vigente hasta (opcional)<input nz-input name="taxTo" type="date" [(ngModel)]="taxTo"></label>
+          <label>Nota de configuración<input nz-input name="taxNotes" [(ngModel)]="taxNotes"></label>
+          <label class="checkbox"><input type="checkbox" name="taxEnabled" [(ngModel)]="taxEnabled"> Habilitar explícitamente para simulaciones</label>
+          @if (error()) { <nz-alert class="wide" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          <div class="actions"><button nz-button nzType="primary" type="submit" [disabled]="busy() || taxForm.invalid">{{ busy() ? 'Guardando…' : 'Asignar regla' }}</button><button nz-button type="button" [disabled]="busy()" (click)="closeTaxModal(taxForm)">Cancelar</button></div>
+        </form>
+      </ng-container>
+    </nz-modal>
   `,
   styles: [`
     .page { width: min(100% - 2rem, 80rem); margin: 2.5rem auto 3rem; }
@@ -179,6 +199,10 @@ export class EconomyComponent implements OnInit {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
+  readonly roleModal = signal(false);
+  readonly rateModal = signal(false);
+  readonly overheadModal = signal(false);
+  readonly taxModal = signal(false);
   readonly canEdit = this.session.bakeries().some((bakery) =>
     bakery.id === this.session.activeBakeryId() && (bakery.role === 'ADMIN' || bakery.role === 'EDITOR'));
   readonly canAdmin = this.session.bakeries().some((bakery) =>
@@ -247,6 +271,7 @@ export class EconomyComponent implements OnInit {
   createRole() {
     this.run(this.api.createLaborRole(this.roleName), 'Puesto creado.', () => {
       this.roleName = '';
+      this.roleModal.set(false);
       this.refreshRoles();
     });
   }
@@ -276,6 +301,7 @@ export class EconomyComponent implements OnInit {
       ...(this.rateNotes.trim() ? { notes: this.rateNotes.trim() } : {}),
     }), 'Tarifa añadida. El período anterior se cerró solo si era abierto y no había solapamiento.', () => {
       this.rateValue = ''; this.rateTo = ''; this.rateNotes = '';
+      this.rateModal.set(false);
       this.showRates(this.selectedRoleId());
       this.refreshRoles();
     });
@@ -323,11 +349,13 @@ export class EconomyComponent implements OnInit {
       allocationUnitId: expense.allocationUnitId ?? '',
       notes: expense.notes ?? '',
     };
+    this.overheadModal.set(true);
   }
 
   clearExpense() {
     this.editingExpenseId = '';
     this.overhead = this.emptyOverhead();
+    this.overheadModal.set(false);
   }
 
   assignTaxRule() {
@@ -339,8 +367,51 @@ export class EconomyComponent implements OnInit {
       configurationNotes: this.taxNotes || null,
     }), 'Asignación fiscal guardada.', () => {
       this.taxVersionId = ''; this.taxFrom = ''; this.taxTo = ''; this.taxNotes = '';
+      this.taxModal.set(false);
       this.refreshAssignments();
     });
+  }
+
+  openNewExpense() {
+    this.editingExpenseId = '';
+    this.overhead = this.emptyOverhead();
+    this.overheadModal.set(true);
+  }
+
+  closeModal(form: NgForm, modal: ReturnType<typeof signal<boolean>>) {
+    if (form.dirty && !globalThis.confirm('¿Descartar los cambios del formulario?')) return;
+    modal.set(false);
+  }
+
+  closeRoleModal(form: NgForm) {
+    this.closeModal(form, this.roleModal);
+    if (!this.roleModal()) this.roleName = '';
+  }
+
+  closeRateModal(form: NgForm) {
+    this.closeModal(form, this.rateModal);
+    if (!this.rateModal()) {
+      this.rateValue = '';
+      this.rateFrom = new Date().toISOString().slice(0, 10);
+      this.rateTo = '';
+      this.rateNotes = '';
+    }
+  }
+
+  closeTaxModal(form: NgForm) {
+    this.closeModal(form, this.taxModal);
+    if (!this.taxModal()) {
+      this.taxVersionId = '';
+      this.taxFrom = '';
+      this.taxTo = '';
+      this.taxNotes = '';
+      this.taxEnabled = true;
+    }
+  }
+
+  closeExpense(form: NgForm) {
+    if (form.dirty && !globalThis.confirm('¿Descartar los cambios del formulario?')) return;
+    this.clearExpense();
   }
 
   toggleAssignment(assignment: TaxAssignment) {

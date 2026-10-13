@@ -49,6 +49,11 @@ describe('API (e2e)', () => {
   const userFindUnique = vi.fn();
   const membershipFindMany = vi.fn();
   const membershipFindUnique = vi.fn();
+  const laborRoleFindMany = vi.fn();
+  const overheadExpenseFindMany = vi.fn();
+  const taxRuleFindMany = vi.fn();
+  const bakeryTaxRuleFindMany = vi.fn();
+  const measurementUnitFindMany = vi.fn();
   const prisma = {
     $queryRaw: queryRaw,
     user: { findUnique: userFindUnique },
@@ -56,6 +61,11 @@ describe('API (e2e)', () => {
       findMany: membershipFindMany,
       findUnique: membershipFindUnique,
     },
+    laborRole: { findMany: laborRoleFindMany },
+    overheadExpense: { findMany: overheadExpenseFindMany },
+    taxRule: { findMany: taxRuleFindMany },
+    bakeryTaxRule: { findMany: bakeryTaxRuleFindMany },
+    measurementUnit: { findMany: measurementUnitFindMany },
   };
 
   beforeAll(async () => {
@@ -68,6 +78,11 @@ describe('API (e2e)', () => {
     userFindUnique.mockReset();
     membershipFindMany.mockReset();
     membershipFindUnique.mockReset();
+    laborRoleFindMany.mockReset().mockResolvedValue([]);
+    overheadExpenseFindMany.mockReset().mockResolvedValue([]);
+    taxRuleFindMany.mockReset().mockResolvedValue([]);
+    bakeryTaxRuleFindMany.mockReset().mockResolvedValue([]);
+    measurementUnitFindMany.mockReset().mockResolvedValue([]);
     userFindUnique.mockImplementation(async ({ where }) => {
       if (
         where.emailNormalized === testUser.emailNormalized ||
@@ -133,6 +148,84 @@ describe('API (e2e)', () => {
       .expect(204)
       .expect('access-control-allow-origin', 'http://localhost:4200')
       .expect('access-control-allow-credentials', 'true');
+  });
+
+  it('registers the five API endpoints and returns HTTP responses', async () => {
+    const token = await login();
+    const bakeryHeaders = {
+      Authorization: `Bearer ${token}`,
+      'X-Bakery-Id': testBakeryId,
+    };
+    const tenantResponses = await Promise.all([
+      request(app.getHttpServer()).get('/api/v1/labor-roles').set(bakeryHeaders),
+      request(app.getHttpServer()).get('/api/v1/overhead-expenses').set(bakeryHeaders),
+      request(app.getHttpServer()).get('/api/v1/tax-settings/assignments').set(bakeryHeaders),
+    ]);
+    for (const response of tenantResponses) {
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual([]);
+    }
+
+    const globalResponses = await Promise.all([
+      request(app.getHttpServer())
+        .get('/api/v1/tax-settings/rules')
+        .set('Authorization', `Bearer ${token}`),
+      request(app.getHttpServer())
+        .get('/api/v1/measurement-units')
+        .set('Authorization', `Bearer ${token}`),
+    ]);
+    for (const response of globalResponses) {
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual([]);
+    }
+
+    expect(laborRoleFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { bakeryId: testBakeryId } }),
+    );
+    expect(overheadExpenseFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ bakeryId: testBakeryId }) }),
+    );
+    expect(bakeryTaxRuleFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { bakeryId: testBakeryId } }),
+    );
+    expect(taxRuleFindMany).toHaveBeenCalledOnce();
+    expect(measurementUnitFindMany).toHaveBeenCalledOnce();
+    expect(membershipFindUnique).toHaveBeenCalledTimes(3);
+  });
+
+  it('requires authentication on all five reported endpoints', async () => {
+    const paths = [
+      '/api/v1/labor-roles',
+      '/api/v1/overhead-expenses',
+      '/api/v1/tax-settings/rules',
+      '/api/v1/measurement-units',
+      '/api/v1/tax-settings/assignments',
+    ];
+
+    for (const path of paths) {
+      await request(app.getHttpServer()).get(path).expect(401);
+    }
+  });
+
+  it('requires bakery context only on bakery-owned endpoint families', async () => {
+    const token = await login();
+    const tenantPaths = [
+      '/api/v1/labor-roles',
+      '/api/v1/overhead-expenses',
+      '/api/v1/tax-settings/assignments',
+    ];
+
+    for (const path of tenantPaths) {
+      await request(app.getHttpServer())
+        .get(path)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400)
+        .expect((response) => {
+          expect(response.body.message).toContain('X-Bakery-Id header is required');
+        });
+    }
+
+    expect(membershipFindUnique).not.toHaveBeenCalled();
   });
 
   it('serves readiness after a successful PostgreSQL query', () => {

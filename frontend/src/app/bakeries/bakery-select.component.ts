@@ -54,8 +54,9 @@ export class BakerySelectComponent implements OnInit {
     if (!this.bakeries().some((item) => item.id === bakery.id)) return;
     this.auth.session.setActiveBakery(bakery.id);
     const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-    const isBakeryRoute =
-      returnUrl?.startsWith('/materials') || returnUrl?.startsWith('/products');
+    const isBakeryRoute = /^\/(?:materials|products|economy)(?:\/|$)/.test(
+      returnUrl ?? '',
+    );
     void this.router.navigateByUrl(
       isBakeryRoute && returnUrl ? returnUrl : '/materials',
     );

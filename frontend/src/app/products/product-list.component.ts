@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -14,6 +15,7 @@ import {
 } from '../core/api.models';
 import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
+import { ProductFormComponent } from './product-form.component';
 
 @Component({
   standalone: true,
@@ -22,17 +24,19 @@ import { SessionStore } from '../core/session-store.service';
     NzAlertModule,
     NzButtonModule,
     NzInputModule,
+    NzModalModule,
     NzPaginationModule,
     NzSelectModule,
     NzTableModule,
     RouterLink,
+    ProductFormComponent,
   ],
   selector: 'app-product-list',
   template: `
     <main class="page mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div class="heading flex flex-wrap items-end gap-4">
         <div><p class="eyebrow">PRODUCCIÓN</p><h1>Productos</h1><p class="muted">Organiza tus productos y sus recetas versionadas.</p></div>
-        @if (canEdit()) { <a nz-button nzType="primary" routerLink="/products/new">＋ Nuevo producto</a> }
+        @if (canEdit()) { <button nz-button nzType="primary" type="button" (click)="createModal.set(true)">＋ Agregar producto</button> }
       </div>
       <section class="filters flex flex-wrap items-end gap-4" aria-label="Filtros de productos">
         <label>Buscar <input nz-input [(ngModel)]="search" (keyup.enter)="applyFilters()" placeholder="Nombre del producto"></label>
@@ -78,6 +82,13 @@ import { SessionStore } from '../core/session-store.service';
         </div>
       }
     </main>
+    <nz-modal nzTitle="Agregar producto" [nzVisible]="createModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="680">
+      <ng-container *nzModalContent>
+        @if (createModal()) {
+          <app-product-form [modal]="true" (saved)="productCreated()" (cancelled)="createModal.set(false)" />
+        }
+      </ng-container>
+    </nz-modal>
   `,
   styles: [`
     .page { width: min(100% - 2rem, 80rem); margin: 2.5rem auto; }
@@ -116,6 +127,7 @@ export class ProductListComponent implements OnInit {
   readonly totalPages = signal(0);
   readonly loading = signal(false);
   readonly error = signal('');
+  readonly createModal = signal(false);
   search = '';
   status: ProductStatus | '' = '';
   page = 1;
@@ -154,6 +166,11 @@ export class ProductListComponent implements OnInit {
       return `Publicada v${summary.publishedVersion.versionNumber}`;
     }
     return 'Sin receta';
+  }
+
+  productCreated(): void {
+    this.createModal.set(false);
+    this.load();
   }
 
   private load(): void {

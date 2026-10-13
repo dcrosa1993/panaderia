@@ -5,6 +5,7 @@
 @import "ng-zorro-antd/input/style/index.min.css";
 @import "ng-zorro-antd/layout/style/index.min.css";
 @import "ng-zorro-antd/menu/style/index.min.css";
+@import "ng-zorro-antd/modal/style/index.min.css";
 @import "ng-zorro-antd/pagination/style/index.min.css";
 @import "ng-zorro-antd/popconfirm/style/index.min.css";
 @import "ng-zorro-antd/select/style/index.min.css";
@@ -12,6 +13,12 @@
 @import "tailwindcss";
 
 :root {
+  --app-blue: #0958d9;
+  --app-blue-hover: #003eb3;
+  --app-green: #28643a;
+  --app-border: #d4ddd3;
+  --app-text: #29372d;
+  --app-muted: #66716a;
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #29372d;
@@ -25,21 +32,137 @@ body { min-width: 320px; min-height: 100vh; margin: 0; }
 button, input, select { font: inherit; }
 
 .ant-btn-primary {
-  background-color: #28643a;
-  border-color: #28643a;
+  background-color: var(--app-blue);
+  border-color: var(--app-blue);
 }
 
 .ant-btn-primary:not(:disabled):hover {
-  background-color: #367b4a;
-  border-color: #367b4a;
+  background-color: var(--app-blue-hover);
+  border-color: var(--app-blue-hover);
+}
+
+.ant-btn-default {
+  border-color: var(--app-border);
+  color: var(--app-green);
+}
+
+.ant-btn-default:not(:disabled):hover {
+  border-color: var(--app-green);
+  color: var(--app-green);
+}
+
+.ant-btn-link:not(:disabled) {
+  color: var(--app-green);
+}
+
+.ant-btn-link:not(:disabled):hover {
+  color: var(--app-green);
+}
+
+.ant-btn-dangerous {
+  color: #a33127;
 }
 
 .ant-menu-horizontal .ant-menu-item-selected,
 .ant-menu-horizontal .ant-menu-item:hover {
-  color: #28643a;
+  color: var(--app-blue);
 }
 
 .ant-menu-horizontal .ant-menu-item-selected::after,
 .ant-menu-horizontal .ant-menu-item:hover::after {
-  border-bottom-color: #28643a;
+  border-bottom-color: var(--app-blue);
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-picker,
+.ant-select .ant-select-selector,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-height: 40px;
+  border-color: var(--app-border);
+  border-radius: 6px;
+  color: var(--app-text);
+  font: inherit;
+}
+
+.ant-select .ant-select-selector {
+  align-items: center;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-input-number:hover,
+.ant-picker:hover,
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector,
+input:not([type="checkbox"]):not([type="radio"]):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--app-blue);
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper-focused,
+.ant-input-number-focused,
+.ant-picker-focused,
+.ant-select-focused .ant-select-selector,
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--app-blue);
+  box-shadow: 0 0 0 2px rgb(9 88 217 / 16%);
+  outline: 0;
+}
+
+.ant-input:disabled,
+.ant-input-number-disabled,
+.ant-picker-disabled,
+.ant-select-disabled .ant-select-selector,
+input:disabled,
+select:disabled,
+textarea:disabled,
+.ant-btn:disabled {
+  color: #818b83;
+  background: #f1f3f0;
+  cursor: not-allowed;
+}
+
+.ant-modal-content {
+  border-radius: 12px;
+}
+
+.ant-modal-header {
+  border-radius: 12px 12px 0 0;
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th {
+  color: #526057;
+  background: #f5f7f3;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: #f6f9f6;
+}
+
+label {
+  color: #4c5b50;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .ant-modal {
+    max-width: calc(100vw - 24px);
+    margin: 12px auto;
+  }
+
+  .ant-modal-body {
+    max-height: calc(100dvh - 160px);
+    overflow-y: auto;
+  }
 }

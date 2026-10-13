@@ -1,10 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, WritableSignal, inject, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { forkJoin } from 'rxjs';
@@ -26,6 +27,7 @@ import { SessionStore } from '../core/session-store.service';
     NzAlertModule,
     NzButtonModule,
     NzInputModule,
+    NzModalModule,
     NzSelectModule,
     NzTableModule,
     RouterLink,
@@ -46,21 +48,7 @@ import { SessionStore } from '../core/session-store.service';
           <section class="panel">
             <h2>Nuevo cálculo histórico</h2>
             <p>Se usa una versión publicada y los precios, tarifas y gastos vigentes en la fecha elegida.</p>
-            <div class="form-grid">
-              <label>Fecha de valoración
-                <input nz-input type="date" [(ngModel)]="valuationDate">
-              </label>
-              <label>Versión publicada (opcional)
-                <nz-select [(ngModel)]="recipeVersionId" nzAllowClear nzPlaceHolder="Elegir la vigente para la fecha">
-                  @for (version of publishedVersions(); track version.id) {
-                    <nz-option [nzValue]="version.id" [nzLabel]="'v' + version.versionNumber + ' · ' + (version.effectiveFrom || 'sin fecha')"></nz-option>
-                  }
-                </nz-select>
-              </label>
-              <button nz-button nzType="primary" type="button" [disabled]="saving() || !valuationDate" (click)="calculate()">
-                {{ saving() ? 'Calculando…' : 'Calcular y guardar' }}
-              </button>
-            </div>
+            <button nz-button nzType="primary" type="button" (click)="calculationModal.set(true)">Nuevo cálculo histórico</button>
           </section>
         } @else {
           <nz-alert nzType="info" nzMessage="Tu rol permite consultar los costes, pero no ejecutar cálculos." nzShowIcon />
@@ -113,24 +101,7 @@ import { SessionStore } from '../core/session-store.service';
           <section class="panel">
             <h2>Escenarios de precio</h2>
             @if (canEdit) {
-              <div class="form-grid scenario-form">
-                <label>Nombre<input nz-input [(ngModel)]="scenarioName"></label>
-                <label>Precio por unidad (CUP)<input nz-input inputmode="decimal" [(ngModel)]="salePrice"></label>
-                <label>Volumen proyectado<input nz-input inputmode="decimal" [(ngModel)]="projectedQuantity"></label>
-                <label>Tratamiento del precio
-                  <nz-select [(ngModel)]="taxTreatment">
-                    <nz-option nzValue="TAX_EXCLUDED_FROM_PRICE" nzLabel="Impuesto excluido"></nz-option>
-                    <nz-option nzValue="TAX_INCLUDED_IN_PRICE" nzLabel="Impuesto incluido"></nz-option>
-                    <nz-option nzValue="NOT_CONFIGURED" nzLabel="No configurado"></nz-option>
-                  </nz-select>
-                </label>
-                <label>Descuentos y devoluciones (CUP)<input nz-input inputmode="decimal" [(ngModel)]="discounts"></label>
-                <label>Otros gastos adicionales (CUP)<input nz-input inputmode="decimal" [(ngModel)]="otherExpenses"></label>
-                <label>Margen neto objetivo (%)<input nz-input inputmode="decimal" [(ngModel)]="targetMargin"></label>
-                <button nz-button nzType="primary" type="button" [disabled]="savingScenario() || !scenarioName || !salePrice || !projectedQuantity" (click)="createScenario()">
-                  {{ savingScenario() ? 'Calculando…' : 'Guardar escenario' }}
-                </button>
-              </div>
+              <button nz-button nzType="primary" type="button" (click)="scenarioModal.set(true)">Crear escenario de precio</button>
             }
             @if (scenarios().length) {
               <div class="table-wrap"><nz-table [nzData]="scenarios()" [nzFrontPagination]="false" [nzShowPagination]="false">
@@ -184,6 +155,43 @@ import { SessionStore } from '../core/session-store.service';
         }
       }
     </main>
+    <nz-modal nzTitle="Calcular coste histórico" [nzVisible]="calculationModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="680">
+      <ng-container *nzModalContent>
+        <form #calculationForm="ngForm" class="form-grid" (ngSubmit)="calculate()">
+          <label>Fecha de valoración<input nz-input name="valuationDate" type="date" [(ngModel)]="valuationDate" required></label>
+          <label>Versión publicada (opcional)
+            <nz-select name="recipeVersionId" [(ngModel)]="recipeVersionId" nzAllowClear nzPlaceHolder="Elegir la vigente para la fecha">
+              @for (version of publishedVersions(); track version.id) {
+                <nz-option [nzValue]="version.id" [nzLabel]="'v' + version.versionNumber + ' · ' + (version.effectiveFrom || 'sin fecha')"></nz-option>
+              }
+            </nz-select>
+          </label>
+          @if (error()) { <nz-alert class="block" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          <div class="actions"><button nz-button nzType="primary" type="submit" [disabled]="saving() || calculationForm.invalid">{{ saving() ? 'Calculando…' : 'Calcular y guardar' }}</button><button nz-button type="button" [disabled]="saving()" (click)="closeCalculationModal(calculationForm)">Cancelar</button></div>
+        </form>
+      </ng-container>
+    </nz-modal>
+    <nz-modal nzTitle="Crear escenario de precio" [nzVisible]="scenarioModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="760">
+      <ng-container *nzModalContent>
+        <form #scenarioForm="ngForm" class="form-grid" (ngSubmit)="createScenario()">
+          <label>Nombre<input nz-input name="scenarioName" [(ngModel)]="scenarioName" maxlength="180" required></label>
+          <label>Precio por unidad (CUP)<input nz-input name="salePrice" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="salePrice" required></label>
+          <label>Volumen proyectado<input nz-input name="projectedQuantity" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="projectedQuantity" required></label>
+          <label>Tratamiento del precio
+            <nz-select name="taxTreatment" [(ngModel)]="taxTreatment" required>
+              <nz-option nzValue="TAX_EXCLUDED_FROM_PRICE" nzLabel="Impuesto excluido"></nz-option>
+              <nz-option nzValue="TAX_INCLUDED_IN_PRICE" nzLabel="Impuesto incluido"></nz-option>
+              <nz-option nzValue="NOT_CONFIGURED" nzLabel="No configurado"></nz-option>
+            </nz-select>
+          </label>
+          <label>Descuentos y devoluciones (CUP)<input nz-input name="discounts" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="discounts"></label>
+          <label>Otros gastos adicionales (CUP)<input nz-input name="otherExpenses" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="otherExpenses"></label>
+          <label>Margen neto objetivo (%)<input nz-input name="targetMargin" inputmode="decimal" pattern="^[0-9]+(\\.[0-9]+)?$" [(ngModel)]="targetMargin"></label>
+          @if (error()) { <nz-alert class="block" nzType="error" [nzMessage]="error()" nzShowIcon /> }
+          <div class="actions"><button nz-button nzType="primary" type="submit" [disabled]="savingScenario() || scenarioForm.invalid">{{ savingScenario() ? 'Calculando…' : 'Guardar escenario' }}</button><button nz-button type="button" [disabled]="savingScenario()" (click)="closeScenarioModal(scenarioForm)">Cancelar</button></div>
+        </form>
+      </ng-container>
+    </nz-modal>
   `,
   styles: [`
     .page { width: min(100% - 2rem, 80rem); margin: 2.5rem auto 3rem; }
@@ -219,6 +227,8 @@ export class ProductCostingComponent implements OnInit {
   readonly saving = signal(false);
   readonly savingScenario = signal(false);
   readonly error = signal('');
+  readonly calculationModal = signal(false);
+  readonly scenarioModal = signal(false);
   readonly canEdit = this.session.bakeries().some(
     (bakery) => bakery.id === this.session.activeBakeryId() &&
       (bakery.role === 'ADMIN' || bakery.role === 'EDITOR'),
@@ -274,7 +284,7 @@ export class ProductCostingComponent implements OnInit {
   }
 
   calculate(): void {
-    if (!this.canEdit || this.saving()) return;
+    if (!this.canEdit || this.saving() || !this.valuationDate) return;
     this.saving.set(true);
     this.error.set('');
     this.api.calculateCost(this.productId, this.valuationDate, this.recipeVersionId || undefined).subscribe({
@@ -283,6 +293,7 @@ export class ProductCostingComponent implements OnInit {
         this.selectedScenario.set(null);
         this.calculations.update((items) => [calculation, ...items]);
         this.scenarios.set([]);
+        this.calculationModal.set(false);
         this.saving.set(false);
       },
       error: (error: unknown) => {
@@ -309,7 +320,7 @@ export class ProductCostingComponent implements OnInit {
 
   createScenario(): void {
     const calculation = this.selectedCalculation();
-    if (!calculation || !this.canEdit || this.savingScenario()) return;
+    if (!calculation || !this.canEdit || this.savingScenario() || !this.scenarioName.trim() || !this.salePrice || !this.projectedQuantity) return;
     this.savingScenario.set(true);
     this.error.set('');
     this.api.createPriceScenario(calculation.id, {
@@ -324,6 +335,8 @@ export class ProductCostingComponent implements OnInit {
       next: (scenario) => {
         this.scenarios.update((items) => [scenario, ...items]);
         this.selectedScenario.set(scenario);
+        this.scenarioModal.set(false);
+        this.resetScenarioForm();
         this.savingScenario.set(false);
       },
       error: (error: unknown) => {
@@ -331,6 +344,32 @@ export class ProductCostingComponent implements OnInit {
         this.savingScenario.set(false);
       },
     });
+  }
+
+  private closeModal(form: NgForm, modal: WritableSignal<boolean>): boolean {
+    if (form.dirty && !globalThis.confirm('¿Descartar los cambios del formulario?')) return false;
+    modal.set(false);
+    return true;
+  }
+
+  closeCalculationModal(form: NgForm): void {
+    if (!this.closeModal(form, this.calculationModal)) return;
+    this.valuationDate = new Date().toISOString().slice(0, 10);
+    this.recipeVersionId = '';
+  }
+
+  closeScenarioModal(form: NgForm): void {
+    if (this.closeModal(form, this.scenarioModal)) this.resetScenarioForm();
+  }
+
+  private resetScenarioForm(): void {
+    this.scenarioName = '';
+    this.salePrice = '';
+    this.projectedQuantity = '1';
+    this.taxTreatment = 'NOT_CONFIGURED';
+    this.discounts = '0';
+    this.otherExpenses = '0';
+    this.targetMargin = '';
   }
 
   selectScenario(id: string): void {

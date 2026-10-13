@@ -6,11 +6,13 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   CurrentBakeryId,
   RequireBakeryContext,
 } from '../auth/auth.decorators.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import {
   CreatePriceScenarioDto,
   CreateTaxAssignmentDto,
@@ -19,16 +21,17 @@ import {
 import { ScenariosService } from './scenarios.service.js';
 
 @Controller()
-@RequireBakeryContext('ADMIN', 'EDITOR', 'VIEWER')
 export class ScenariosController {
   constructor(private readonly scenarios: ScenariosService) {}
 
   @Get('tax-settings/rules')
+  @UseGuards(JwtAuthGuard)
   rules() {
     return this.scenarios.listRules();
   }
 
   @Get('tax-settings/assignments')
+  @RequireBakeryContext('ADMIN', 'EDITOR', 'VIEWER')
   assignments(@CurrentBakeryId() bakeryId: string) {
     return this.scenarios.listAssignments(bakeryId);
   }
@@ -50,6 +53,7 @@ export class ScenariosController {
   }
 
   @Get('cost-calculations/:calculationId/scenarios')
+  @RequireBakeryContext('ADMIN', 'EDITOR', 'VIEWER')
   list(
     @CurrentBakeryId() bakeryId: string,
     @Param('calculationId', ParseUUIDPipe) calculationId: string,
@@ -68,6 +72,7 @@ export class ScenariosController {
   }
 
   @Get('price-scenarios/:scenarioId')
+  @RequireBakeryContext('ADMIN', 'EDITOR', 'VIEWER')
   get(
     @CurrentBakeryId() bakeryId: string,
     @Param('scenarioId', ParseUUIDPipe) scenarioId: string,

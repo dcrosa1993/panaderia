@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -11,6 +12,7 @@ import { ApiService } from '../core/api.service';
 import { Material, MaterialKind } from '../core/api.models';
 import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
+import { MaterialFormComponent } from './material-form.component';
 
 const materialKindOptions: { value: MaterialKind; label: string }[] = [
   { value: 'INGREDIENT', label: 'Ingrediente' },
@@ -27,17 +29,19 @@ const materialKindOptions: { value: MaterialKind; label: string }[] = [
     NzAlertModule,
     NzButtonModule,
     NzInputModule,
+    NzModalModule,
     NzPaginationModule,
     NzSelectModule,
     NzTableModule,
     RouterLink,
+    MaterialFormComponent,
   ],
   selector: 'app-material-list',
   template: `
     <main class="page mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div class="heading flex flex-wrap items-end gap-4">
         <div><p class="eyebrow">CATÁLOGO</p><h1>Materias primas</h1><p class="muted">Controla tus insumos y consulta su historial de precios.</p></div>
-        @if (canEdit()) { <a nz-button nzType="primary" routerLink="/materials/new">＋ Nueva materia prima</a> }
+        @if (canEdit()) { <button nz-button nzType="primary" type="button" (click)="createModal.set(true)">＋ Agregar materia prima</button> }
       </div>
       <section class="filters flex flex-wrap items-end gap-4" aria-label="Filtros del catálogo">
         <label>Buscar <input nz-input [(ngModel)]="search" (keyup.enter)="applyFilters()" placeholder="Nombre de materia prima"></label>
@@ -83,6 +87,13 @@ const materialKindOptions: { value: MaterialKind; label: string }[] = [
         </div>
       }
     </main>
+    <nz-modal nzTitle="Agregar ingrediente o material" [nzVisible]="createModal()" [nzFooter]="null" [nzClosable]="false" [nzMaskClosable]="false" [nzKeyboard]="false" [nzWidth]="680">
+      <ng-container *nzModalContent>
+        @if (createModal()) {
+          <app-material-form [modal]="true" (saved)="materialCreated()" (cancelled)="createModal.set(false)" />
+        }
+      </ng-container>
+    </nz-modal>
   `,
   styles: [`
     .page { width: min(100% - 2rem, 80rem); margin: 2.5rem auto; }
@@ -123,6 +134,7 @@ export class MaterialListComponent implements OnInit {
   readonly result = signal<{ total: number; page: number; totalPages: number } | null>(null);
   readonly loading = signal(false);
   readonly error = signal('');
+  readonly createModal = signal(false);
   readonly kinds = materialKindOptions;
   search = '';
   kind: MaterialKind | '' = '';
@@ -134,6 +146,11 @@ export class MaterialListComponent implements OnInit {
     )?.role;
     return role === 'ADMIN' || role === 'EDITOR';
   };
+
+  materialCreated(): void {
+    this.createModal.set(false);
+    this.load();
+  }
 
   ngOnInit(): void {
     this.load();

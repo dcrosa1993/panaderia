@@ -1,23 +1,24 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { ApiService } from '../core/api.service';
-import { MeasurementUnit, ProductStatus } from '../core/api.models';
+import { MeasurementUnit, Product, ProductStatus } from '../core/api.models';
 import { apiErrorMessage } from '../core/api-error-message';
 import { SessionStore } from '../core/session-store.service';
 
 @Component({
   standalone: true,
-  imports: [NzAlertModule, NzButtonModule, NzInputModule, NzSelectModule, ReactiveFormsModule, RouterLink],
+  imports: [NzAlertModule, NzButtonModule, NzInputModule, NzModalModule, NzSelectModule, ReactiveFormsModule, RouterLink],
   selector: 'app-product-form',
   template: `
-    <main class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-      <a class="font-semibold text-emerald-800 no-underline" routerLink="/products">← Volver a productos</a>
-      <section class="mt-4 rounded-xl border border-stone-200 bg-white p-5 sm:p-8">
+    <main [class]="modal ? 'w-full' : 'mx-auto w-full max-w-3xl px-4 py-8 sm:px-6'">
+      @if (!modal) { <a class="font-semibold text-emerald-800 no-underline" routerLink="/products">← Volver a productos</a> }
+      <section [class]="modal ? '' : 'mt-4 rounded-xl border border-stone-200 bg-white p-5 sm:p-8'">
         <p class="text-xs font-extrabold tracking-[.14em] text-emerald-800">CATÁLOGO</p>
         <h1 class="mb-6 font-serif text-3xl font-medium text-emerald-950">{{ editing ? 'Editar producto' : 'Nuevo producto' }}</h1>
         @if (loading()) { <p class="text-stone-600">Cargando datos…</p> }
@@ -53,7 +54,7 @@ import { SessionStore } from '../core/session-store.service';
               <button nz-button nzType="primary" type="submit" [disabled]="form.invalid || saving() || !canEdit">
                 {{ saving() ? 'Guardando…' : 'Guardar producto' }}
               </button>
-              <a class="font-semibold text-emerald-800 no-underline" routerLink="/products">Cancelar</a>
+              <button nz-button nzType="default" type="button" [disabled]="saving()" (click)="cancel()">Cancelar</button>
             </div>
           </form>
         }
@@ -62,6 +63,10 @@ import { SessionStore } from '../core/session-store.service';
   `,
 })
 export class ProductFormComponent implements OnInit {
+  @Input() modal = false;
+  @Output() saved = new EventEmitter<Product>();
+  @Output() cancelled = new EventEmitter<void>();
+
   private readonly formBuilder = inject(FormBuilder);
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
@@ -125,7 +130,13 @@ export class ProductFormComponent implements OnInit {
       ? this.api.updateProduct(this.id, { ...input, status: value.status })
       : this.api.createProduct(input);
     operation.subscribe({
-      next: (product) => void this.router.navigate(['/products', product.id]),
+      next: (product) => {
+        if (this.modal) {
+          this.saved.emit(product);
+          return;
+        }
+        void this.router.navigate(['/products', product.id]);
+      },
       error: (error: unknown) => {
         this.error.set(apiErrorMessage(
           error,
@@ -134,6 +145,17 @@ export class ProductFormComponent implements OnInit {
         this.saving.set(false);
       },
     });
+  }
+
+  cancel(): void {
+    if (this.form.dirty && !globalThis.confirm('¿Descartar los cambios del formulario?')) {
+      return;
+    }
+    if (this.modal) {
+      this.cancelled.emit();
+      return;
+    }
+    void this.router.navigate(['/products']);
   }
 
   private loadProduct(id: string): void {

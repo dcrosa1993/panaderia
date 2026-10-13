@@ -116,6 +116,37 @@ describe('authInterceptor', () => {
     });
   });
 
+  it('adds bakery context to economy, costing, scenario and tax-assignment requests', () => {
+    const actions: Array<() => void> = [
+      () => api.laborRoles().subscribe(),
+      () => api.laborRates('role-1').subscribe(),
+      () => api.overheadExpenses().subscribe(),
+      () => api.taxAssignments().subscribe(),
+      () => api.costCalculations('product-1').subscribe(),
+      () => api.costCalculation('calculation-1').subscribe(),
+      () => api.priceScenarios('calculation-1').subscribe(),
+      () => api.priceScenario('scenario-1').subscribe(),
+    ];
+    const paths = [
+      `${API_BASE}/labor-roles`,
+      `${API_BASE}/labor-roles/role-1/rates`,
+      `${API_BASE}/overhead-expenses`,
+      `${API_BASE}/tax-settings/assignments`,
+      `${API_BASE}/products/product-1/cost-calculations`,
+      `${API_BASE}/cost-calculations/calculation-1`,
+      `${API_BASE}/cost-calculations/calculation-1/scenarios`,
+      `${API_BASE}/price-scenarios/scenario-1`,
+    ];
+
+    actions.forEach((action, index) => {
+      action();
+      const request = http.expectOne(paths[index]);
+      expect(request.request.headers.get('Authorization')?.startsWith('Bearer ')).toBe(true);
+      expect(request.request.headers.get('X-Bakery-Id')).toBe('bakery-one');
+      request.flush([]);
+    });
+  });
+
   it('sends the newly selected bakery after a bakery change', () => {
     session.setActiveBakery('bakery-two');
     api.createProduct({ name: 'Pan', salesUnitId: 'unit' }).subscribe();
@@ -148,6 +179,7 @@ describe('authInterceptor', () => {
       () => api.currentUser().subscribe(),
       () => api.bakeries().subscribe(),
       () => api.measurementUnits().subscribe(),
+      () => api.taxRules().subscribe(),
     ];
     const paths = [
       `${API_BASE}/auth/login`,
@@ -155,12 +187,16 @@ describe('authInterceptor', () => {
       `${API_BASE}/auth/me`,
       `${API_BASE}/bakeries`,
       `${API_BASE}/measurement-units`,
+      `${API_BASE}/tax-settings/rules`,
     ];
 
     globalRequests.forEach((action, index) => {
       action();
       const request = http.expectOne(paths[index]);
       expect(request.request.headers.has('X-Bakery-Id')).toBe(false);
+      if (index > 1) {
+        expect(request.request.headers.get('Authorization')?.startsWith('Bearer ')).toBe(true);
+      }
       request.flush(index === 0 ? { accessToken: 'new', tokenType: 'Bearer', expiresIn: 900 } : []);
     });
   });
