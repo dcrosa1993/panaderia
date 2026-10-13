@@ -13,6 +13,8 @@ import { SessionStore } from './session-store.service';
 @Component({ standalone: true, template: '' })
 class StubComponent {}
 
+const API_BASE = 'https://panaderia-api.may.cu/api/v1';
+
 describe('authInterceptor', () => {
   let api: ApiService;
   let http: HttpTestingController;
@@ -50,14 +52,14 @@ describe('authInterceptor', () => {
       () => api.publishRecipeVersion('product-1', 'version-1', '2026-01-01').subscribe(),
     ];
     const paths = [
-      '/api/v1/products',
-      '/api/v1/products/product-1',
-      '/api/v1/products/product-1/recipe-versions',
-      '/api/v1/products/product-1/recipe-versions',
-      '/api/v1/products/product-1/recipe-versions/version-1',
-      '/api/v1/products/product-1/recipe-versions/version-1',
-      '/api/v1/products/product-1/recipe-versions/version-1/materials',
-      '/api/v1/products/product-1/recipe-versions/version-1/publish',
+      `${API_BASE}/products`,
+      `${API_BASE}/products/product-1`,
+      `${API_BASE}/products/product-1/recipe-versions`,
+      `${API_BASE}/products/product-1/recipe-versions`,
+      `${API_BASE}/products/product-1/recipe-versions/version-1`,
+      `${API_BASE}/products/product-1/recipe-versions/version-1`,
+      `${API_BASE}/products/product-1/recipe-versions/version-1/materials`,
+      `${API_BASE}/products/product-1/recipe-versions/version-1/publish`,
     ];
 
     actions.forEach((action, index) => {
@@ -98,12 +100,12 @@ describe('authInterceptor', () => {
       }).subscribe(),
     ];
     const paths = [
-      '/api/v1/materials/material-1',
-      '/api/v1/materials',
-      '/api/v1/materials/material-1',
-      '/api/v1/materials/material-1/prices',
-      '/api/v1/materials/material-1/prices/preview',
-      '/api/v1/materials/material-1/prices',
+      `${API_BASE}/materials/material-1`,
+      `${API_BASE}/materials`,
+      `${API_BASE}/materials/material-1`,
+      `${API_BASE}/materials/material-1/prices`,
+      `${API_BASE}/materials/material-1/prices/preview`,
+      `${API_BASE}/materials/material-1/prices`,
     ];
 
     actions.forEach((action, index) => {
@@ -117,7 +119,7 @@ describe('authInterceptor', () => {
   it('sends the newly selected bakery after a bakery change', () => {
     session.setActiveBakery('bakery-two');
     api.createProduct({ name: 'Pan', salesUnitId: 'unit' }).subscribe();
-    const request = http.expectOne('/api/v1/products');
+    const request = http.expectOne(`${API_BASE}/products`);
     expect(request.request.headers.get('X-Bakery-Id')).toBe('bakery-two');
     request.flush({});
   });
@@ -131,7 +133,7 @@ describe('authInterceptor', () => {
       error: (error: unknown) => errors.push(error),
     });
 
-    http.expectNone('/api/v1/products');
+    http.expectNone(`${API_BASE}/products`);
     expect(errors).toHaveLength(1);
     expect(navigate).toHaveBeenCalledWith(['/select-bakery'], {
       queryParams: { returnUrl: '/' },
@@ -148,11 +150,11 @@ describe('authInterceptor', () => {
       () => api.measurementUnits().subscribe(),
     ];
     const paths = [
-      '/api/v1/auth/login',
+      `${API_BASE}/auth/login`,
       '/api/v1/health/liveness',
-      '/api/v1/auth/me',
-      '/api/v1/bakeries',
-      '/api/v1/measurement-units',
+      `${API_BASE}/auth/me`,
+      `${API_BASE}/bakeries`,
+      `${API_BASE}/measurement-units`,
     ];
 
     globalRequests.forEach((action, index) => {
@@ -166,7 +168,7 @@ describe('authInterceptor', () => {
   it('adds bakery context to all material routes and clears session after 401', () => {
     api.materials({ page: 1, pageSize: 20 }).subscribe();
     const materials = http.expectOne((request) =>
-      request.url.endsWith('/api/v1/materials'),
+      request.url === `${API_BASE}/materials`,
     );
     expect(materials.request.headers.get('Authorization')).toBe(
       'Bearer test-access-token',
@@ -181,7 +183,7 @@ describe('authInterceptor', () => {
     });
 
     api.currentUser().subscribe({ error: () => undefined });
-    http.expectOne('/api/v1/auth/me').flush(
+    http.expectOne(`${API_BASE}/auth/me`).flush(
       { message: 'Unauthorized' },
       { status: 401, statusText: 'Unauthorized' },
     );

@@ -15,6 +15,11 @@ export const environment = {
   API_URL: '${BASE_URL}',
 };
 EOF
+RUN cat > ./src/environments/environment.production.ts <<EOF
+export const environment = {
+  API_URL: '${BASE_URL}',
+};
+EOF
 RUN npm run build -- --configuration production \
     && mkdir -p /tmp/angular-dist \
     && INDEX_HTML="$(find dist -type f -name index.html -print -quit)" \
