@@ -14,7 +14,7 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { ApiService } from '../core/api.service';
 import {
@@ -489,7 +489,7 @@ export class RecipeEditorComponent implements OnInit {
         );
         const loadAdditional = additionalPages.length
           ? forkJoin(additionalPages)
-          : forkJoin([]);
+          : of([]);
         loadAdditional.subscribe({
           next: (pages) => {
             this.product.set(product);
