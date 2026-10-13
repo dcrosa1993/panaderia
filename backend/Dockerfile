@@ -15,12 +15,29 @@
 
 FROM node:24-bookworm-slim AS builder
 
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
+ARG PORT
+ENV PORT=${PORT}
+ARG FRONTEND_ORIGIN
+ENV FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
+ARG JWT_SECRET
+ENV JWT_SECRET=${JWT_SECRET}
+ARG BOOTSTRAP_ADMIN_EMAIL
+ENV BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL}
+ARG BOOTSTRAP_ADMIN_PASSWORD
+ENV BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD}
+ARG BOOTSTRAP_ADMIN_NAME
+ENV BOOTSTRAP_ADMIN_NAME=${BOOTSTRAP_ADMIN_NAME}
+ARG BOOTSTRAP_BAKERY_NAME
+ENV BOOTSTRAP_BAKERY_NAME=${BOOTSTRAP_BAKERY_NAME}
+
 WORKDIR /app
 
 # Build tools support native dependencies such as argon2 where needed.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ca-certificates openssl python3 make g++ \
+    ca-certificates openssl python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
@@ -38,11 +55,45 @@ RUN DATABASE_URL='postgresql://build:build@127.0.0.1:5432/build?schema=public' \
 # One-shot migration image. Contains Prisma CLI, schema and committed migrations.
 # DATABASE_URL must be injected only when running the container.
 FROM builder AS migrator
+
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
+ARG PORT
+ENV PORT=${PORT}
+ARG FRONTEND_ORIGIN
+ENV FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
+ARG JWT_SECRET
+ENV JWT_SECRET=${JWT_SECRET}
+ARG BOOTSTRAP_ADMIN_EMAIL
+ENV BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL}
+ARG BOOTSTRAP_ADMIN_PASSWORD
+ENV BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD}
+ARG BOOTSTRAP_ADMIN_NAME
+ENV BOOTSTRAP_ADMIN_NAME=${BOOTSTRAP_ADMIN_NAME}
+ARG BOOTSTRAP_BAKERY_NAME
+ENV BOOTSTRAP_BAKERY_NAME=${BOOTSTRAP_BAKERY_NAME}
 ENV NODE_ENV=production
 ENTRYPOINT ["./node_modules/.bin/prisma", "migrate", "deploy"]
 
 # Remove development dependencies for the application runtime image.
 FROM builder AS production-dependencies
+
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
+ARG PORT
+ENV PORT=${PORT}
+ARG FRONTEND_ORIGIN
+ENV FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
+ARG JWT_SECRET
+ENV JWT_SECRET=${JWT_SECRET}
+ARG BOOTSTRAP_ADMIN_EMAIL
+ENV BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL}
+ARG BOOTSTRAP_ADMIN_PASSWORD
+ENV BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD}
+ARG BOOTSTRAP_ADMIN_NAME
+ENV BOOTSTRAP_ADMIN_NAME=${BOOTSTRAP_ADMIN_NAME}
+ARG BOOTSTRAP_BAKERY_NAME
+ENV BOOTSTRAP_BAKERY_NAME=${BOOTSTRAP_BAKERY_NAME}
 RUN npm prune --omit=dev
 
 FROM node:24-bookworm-slim AS runtime
@@ -52,7 +103,7 @@ ENV NODE_ENV=production \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ca-certificates openssl libstdc++6 \
+    ca-certificates openssl libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -35,6 +35,16 @@ jobs:
           tags: denismaycr/personal_projects:panaderia_backend_latest
           cache-from: type=gha,scope=panaderia-backend-runtime
           cache-to: type=gha,mode=max,scope=panaderia-backend-runtime
+          build-args: |
+            NODE_ENV=development
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            PORT=3000
+            FRONTEND_ORIGIN=https://panaderia.may.cu
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            BOOTSTRAP_ADMIN_EMAIL=${{ secrets.BOOTSTRAP_ADMIN_EMAIL }}
+            BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
+            BOOTSTRAP_ADMIN_NAME=${{ secrets.BOOTSTRAP_ADMIN_NAME }}
+            BOOTSTRAP_BAKERY_NAME=${{ secrets.BOOTSTRAP_BAKERY_NAME }}
 
       - name: Build and push production migrator image
         uses: docker/build-push-action@v6
@@ -46,3 +56,13 @@ jobs:
           tags: denismaycr/personal_projects:panaderia_migrator_latest
           cache-from: type=gha,scope=panaderia-backend-migrator
           cache-to: type=gha,mode=max,scope=panaderia-backend-migrator
+          build-args: |
+            NODE_ENV=development
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            PORT=3000
+            FRONTEND_ORIGIN=https://panaderia.may.cu
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            BOOTSTRAP_ADMIN_EMAIL=${{ secrets.BOOTSTRAP_ADMIN_EMAIL }}
+            BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
+            BOOTSTRAP_ADMIN_NAME=${{ secrets.BOOTSTRAP_ADMIN_NAME }}
+            BOOTSTRAP_BAKERY_NAME=${{ secrets.BOOTSTRAP_BAKERY_NAME }}
