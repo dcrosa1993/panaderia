@@ -37,6 +37,7 @@ function setup(input: {
   recipeQuantity?: string;
 }) {
   let created: Record<string, unknown> | null = null;
+  let createData: Record<string, unknown> | null = null;
   const price = {
     id: 'price-id',
     bakeryId,
@@ -125,6 +126,7 @@ function setup(input: {
     },
     costCalculation: {
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        createData = data;
         const nestedLines = data.lines as { create: Array<Record<string, unknown>> };
         created = {
           id: 'calculation-id',
@@ -141,12 +143,13 @@ function setup(input: {
     service: new CostsService(prisma as unknown as PrismaService),
     prisma,
     getCreated: () => created,
+    getCreateData: () => createData,
   };
 }
 
 describe('CostsService', () => {
   it('saves a complete historical cost with material, labor, overhead and vendable output', async () => {
-    const { service, prisma, getCreated } = setup({
+    const { service, prisma, getCreated, getCreateData } = setup({
       withPrice: true,
       labor: true,
       overhead: true,
@@ -173,12 +176,18 @@ describe('CostsService', () => {
     });
     expect(prisma.costCalculation.create).toHaveBeenCalledOnce();
     expect(getCreated()).toMatchObject({
+      bakeryId,
       status: 'COMPLETE',
       inputSnapshot: {
         recipeVersion: { id: versionId, versionNumber: 1 },
         salesUnit: 'pc',
       },
     });
+    const nestedLines = getCreateData()?.lines as {
+      create: Array<Record<string, unknown>>;
+    };
+    expect(nestedLines.create).toHaveLength(3);
+    expect(nestedLines.create.every((line) => !('bakeryId' in line))).toBe(true);
   });
 
   it('marks absent prices, labor operations and period overhead incomplete instead of zero', async () => {

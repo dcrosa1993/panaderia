@@ -573,7 +573,7 @@ export class CostsService {
             outputUnitId: args.recipe.outputUnit.id,
             outputUnitConversionFactor: args.recipe.outputUnit.conversionFactor.toString(),
           },
-          lines: { create: lines.map(line => ({ ...line, bakeryId: args.bakeryId })) },
+          lines: { create: lines },
         },
         include: calculationInclude,
       });
